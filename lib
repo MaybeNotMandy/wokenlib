@@ -151,7 +151,7 @@ function SimpleKavo.CreateLib(title, themeName)
     Minimize.BackgroundTransparency = 0.5
     Minimize.Size = UDim2.new(0, 40, 0, 40)
     Minimize.Position = UDim2.new(0.3, -45, 0.3, -50)
-    Minimize.Image = "rbxassetid://77395718743170"
+    Minimize.Image = "rbxassetid://94211321503908"
     Minimize.ImageColor3 = currentTheme.TextColor
     Minimize.ZIndex = 3
     local MinimizeStroke = Instance.new("UIStroke")

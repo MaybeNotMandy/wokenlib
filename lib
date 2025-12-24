@@ -709,11 +709,11 @@ function SimpleKavo.CreateLib(title, themeName)
                 end
                
                 DropdownFrame.Parent = SectionContent
-                for name, func in pairs(dropdownMethods) do
-                    DropdownFrame[name] = func
-                end
-               
-                return DropdownFrame
+
+dropdownMethods.Frame = DropdownFrame
+
+return dropdownMethods
+
             end
            
             function SectionFunctions:NewTextBox(name, placeholder, callback)

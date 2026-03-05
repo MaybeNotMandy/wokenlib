@@ -218,35 +218,18 @@ function SimpleKavo.CreateLib(title, themeName)
     Content.ZIndex = 2
 
     -- =========================================================
-    -- MINIMIZE BUTTON (flutuante, arrastável)
+    -- MINIMIZE via F1
     -- =========================================================
-    local Minimize = Instance.new("ImageButton")
-    Minimize.Parent = ScreenGui
-    Minimize.Name = "MinimizeButton"
-    Minimize.BackgroundColor3 = currentTheme.ElementColor
-    Minimize.BackgroundTransparency = 0.4
-    Minimize.Size = UDim2.new(0, 36, 0, 36)
-    Minimize.Position = UDim2.new(0.3, -42, 0.3, -46)
-    Minimize.Image = "rbxassetid://77395718743170"
-    Minimize.ImageColor3 = currentTheme.TextColor
-    Minimize.ZIndex = 3
-    local MinimizeStroke = Instance.new("UIStroke")
-    MinimizeStroke.Color = Color3.fromRGB(255, 255, 255)
-    MinimizeStroke.Transparency = 0.7
-    MinimizeStroke.Parent = Minimize
-    MinimizeStroke.Thickness = 1
-    MinimizeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    local MinimizeCorner = Instance.new("UICorner")
-    MinimizeCorner.CornerRadius = UDim.new(0, 8)
-    MinimizeCorner.Parent = Minimize
-    SimpleKavo:DraggingEnabled(Minimize)
     local Minimized = false
-    Minimize.MouseButton1Click:Connect(function()
-        Minimized = not Minimized
-        if Minimized then
-            Tween(Main, {Size = UDim2.new(0, 0, 0, 0)})
-        else
-            Tween(Main, {Size = UDim2.new(0, 500, 0, 300)})
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.F1 then
+            Minimized = not Minimized
+            if Minimized then
+                Tween(Main, {Size = UDim2.new(0, 0, 0, 0)})
+            else
+                Tween(Main, {Size = UDim2.new(0, 500, 0, 300)})
+            end
         end
     end)
 
@@ -262,8 +245,6 @@ function SimpleKavo.CreateLib(title, themeName)
         Header.BackgroundColor3 = currentTheme.Header
         TabBar.BackgroundColor3 = currentTheme.Header
         Title.TextColor3 = currentTheme.TextColor
-        Minimize.ImageColor3 = currentTheme.TextColor
-        Minimize.BackgroundColor3 = currentTheme.ElementColor
         for _, tab in pairs(TabsHolder:GetChildren()) do
             if tab:IsA("TextButton") then
                 tab.TextColor3 = currentTheme.TextColor

@@ -96,7 +96,7 @@ function SimpleKavo.CreateLib(title, themeName)
     Main.Name = "Main"
     Main.Parent = ScreenGui
     Main.BackgroundColor3 = currentTheme.Background
-    Main.BackgroundTransparency = 0.35          -- << TRANSPARENTE
+    Main.BackgroundTransparency = 0.35
     Main.Position = UDim2.new(0.3, 0, 0.3, 0)
     Main.Size = UDim2.new(0, 500, 0, 300)
     Main.ClipsDescendants = true
@@ -106,7 +106,6 @@ function SimpleKavo.CreateLib(title, themeName)
     MainCorner.CornerRadius = UDim.new(0, 8)
     MainCorner.Parent = Main
 
-    -- Borda sutil estilo glassmorphism
     local MainStroke = Instance.new("UIStroke")
     MainStroke.Color = Color3.fromRGB(255, 255, 255)
     MainStroke.Transparency = 0.8
@@ -121,7 +120,7 @@ function SimpleKavo.CreateLib(title, themeName)
     Header.Name = "Header"
     Header.Parent = Main
     Header.BackgroundColor3 = currentTheme.Header
-    Header.BackgroundTransparency = 0.5         -- << TRANSPARENTE
+    Header.BackgroundTransparency = 0.5
     Header.Size = UDim2.new(1, 0, 0, 28)
     Header.ZIndex = 2
 
@@ -141,6 +140,21 @@ function SimpleKavo.CreateLib(title, themeName)
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.ZIndex = 3
 
+    -- Hint de tecla F1 no header (canto direito, antes do close)
+    local F1Hint = Instance.new("TextLabel")
+    F1Hint.Parent = Header
+    F1Hint.BackgroundTransparency = 1
+    F1Hint.AnchorPoint = Vector2.new(1, 0.5)
+    F1Hint.Position = UDim2.new(1, -30, 0.5, 0)
+    F1Hint.Size = UDim2.new(0, 50, 0, 16)
+    F1Hint.Font = Enum.Font.Gotham
+    F1Hint.Text = "[F1]"
+    F1Hint.TextColor3 = currentTheme.TextColor
+    F1Hint.TextTransparency = 0.5
+    F1Hint.TextSize = 11
+    F1Hint.TextXAlignment = Enum.TextXAlignment.Right
+    F1Hint.ZIndex = 3
+
     local Close = Instance.new("ImageButton")
     Close.Parent = Header
     Close.BackgroundTransparency = 1
@@ -159,13 +173,13 @@ function SimpleKavo.CreateLib(title, themeName)
     end)
 
     -- =========================================================
-    -- TABS HORIZONTAIS — estilo Linux (barra no topo)
+    -- TABS HORIZONTAIS
     -- =========================================================
     local TabBar = Instance.new("Frame")
     TabBar.Name = "TabBar"
     TabBar.Parent = Main
     TabBar.BackgroundColor3 = currentTheme.Header
-    TabBar.BackgroundTransparency = 0.55        -- << TRANSPARENTE
+    TabBar.BackgroundTransparency = 0.55
     TabBar.Position = UDim2.new(0, 0, 0, 28)
     TabBar.Size = UDim2.new(1, 0, 0, 30)
     TabBar.ClipsDescendants = true
@@ -178,14 +192,13 @@ function SimpleKavo.CreateLib(title, themeName)
     TabBarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     TabBarStroke.Parent = TabBar
 
-    -- ScrollingFrame dentro da barra de tabs (para muitas tabs)
     local TabsScroll = Instance.new("ScrollingFrame")
     TabsScroll.Name = "TabsScroll"
     TabsScroll.Parent = TabBar
     TabsScroll.BackgroundTransparency = 1
     TabsScroll.Position = UDim2.new(0, 4, 0, 2)
     TabsScroll.Size = UDim2.new(1, -8, 1, -2)
-    TabsScroll.ScrollBarThickness = 0           -- esconde scrollbar (horizontal)
+    TabsScroll.ScrollBarThickness = 0
     TabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
     TabsScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
     TabsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -203,50 +216,33 @@ function SimpleKavo.CreateLib(title, themeName)
     TabsList.Parent = TabsHolder
     TabsList.Padding = UDim.new(0, 4)
     TabsList.SortOrder = Enum.SortOrder.LayoutOrder
-    TabsList.FillDirection = Enum.FillDirection.Horizontal   -- << HORIZONTAL
+    TabsList.FillDirection = Enum.FillDirection.Horizontal
     TabsList.VerticalAlignment = Enum.VerticalAlignment.Center
 
     -- =========================================================
-    -- CONTENT — abaixo da tab bar
+    -- CONTENT
     -- =========================================================
     local Content = Instance.new("Frame")
     Content.Name = "Content"
     Content.Parent = Main
     Content.BackgroundTransparency = 1
-    Content.Position = UDim2.new(0, 0, 0, 58)   -- header(28) + tabbar(30)
+    Content.Position = UDim2.new(0, 0, 0, 58)
     Content.Size = UDim2.new(1, 0, 1, -58)
     Content.ZIndex = 2
 
     -- =========================================================
-    -- MINIMIZE BUTTON (flutuante, arrastável)
+    -- TOGGLE F1 — minimizar / restaurar
     -- =========================================================
-    local Minimize = Instance.new("ImageButton")
-    Minimize.Parent = ScreenGui
-    Minimize.Name = "MinimizeButton"
-    Minimize.BackgroundColor3 = currentTheme.ElementColor
-    Minimize.BackgroundTransparency = 0.4
-    Minimize.Size = UDim2.new(0, 36, 0, 36)
-    Minimize.Position = UDim2.new(0.3, -42, 0.3, -46)
-    Minimize.Image = "rbxassetid://77395718743170"
-    Minimize.ImageColor3 = currentTheme.TextColor
-    Minimize.ZIndex = 3
-    local MinimizeStroke = Instance.new("UIStroke")
-    MinimizeStroke.Color = Color3.fromRGB(255, 255, 255)
-    MinimizeStroke.Transparency = 0.7
-    MinimizeStroke.Parent = Minimize
-    MinimizeStroke.Thickness = 1
-    MinimizeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    local MinimizeCorner = Instance.new("UICorner")
-    MinimizeCorner.CornerRadius = UDim.new(0, 8)
-    MinimizeCorner.Parent = Minimize
-    SimpleKavo:DraggingEnabled(Minimize)
     local Minimized = false
-    Minimize.MouseButton1Click:Connect(function()
-        Minimized = not Minimized
-        if Minimized then
-            Tween(Main, {Size = UDim2.new(0, 0, 0, 0)})
-        else
-            Tween(Main, {Size = UDim2.new(0, 500, 0, 300)})
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.F1 then
+            Minimized = not Minimized
+            if Minimized then
+                Tween(Main, {Size = UDim2.new(0, 0, 0, 0)})
+            else
+                Tween(Main, {Size = UDim2.new(0, 500, 0, 300)})
+            end
         end
     end)
 
@@ -262,8 +258,6 @@ function SimpleKavo.CreateLib(title, themeName)
         Header.BackgroundColor3 = currentTheme.Header
         TabBar.BackgroundColor3 = currentTheme.Header
         Title.TextColor3 = currentTheme.TextColor
-        Minimize.ImageColor3 = currentTheme.TextColor
-        Minimize.BackgroundColor3 = currentTheme.ElementColor
         for _, tab in pairs(TabsHolder:GetChildren()) do
             if tab:IsA("TextButton") then
                 tab.TextColor3 = currentTheme.TextColor
@@ -304,7 +298,6 @@ function SimpleKavo.CreateLib(title, themeName)
     end
 
     function SimpleKavo:AddTab(name)
-        -- ── Tab button (horizontal, estilo Linux) ──────────────
         local TabButton = Instance.new("TextButton")
         TabButton.Name = name
         TabButton.Parent = TabsHolder
@@ -323,7 +316,6 @@ function SimpleKavo.CreateLib(title, themeName)
         TabCorner.CornerRadius = UDim.new(0, 5)
         TabCorner.Parent = TabButton
 
-        -- Indicador inferior (active underline)
         local ActiveLine = Instance.new("Frame")
         ActiveLine.Name = "ActiveLine"
         ActiveLine.Parent = TabButton
@@ -331,10 +323,9 @@ function SimpleKavo.CreateLib(title, themeName)
         ActiveLine.BorderSizePixel = 0
         ActiveLine.AnchorPoint = Vector2.new(0, 1)
         ActiveLine.Position = UDim2.new(0, 0, 1, 0)
-        ActiveLine.Size = UDim2.new(0, 0, 0, 2)   -- começa zerado
+        ActiveLine.Size = UDim2.new(0, 0, 0, 2)
         ActiveLine.ZIndex = 5
 
-        -- ── Tab content ────────────────────────────────────────
         local TabContent = Instance.new("ScrollingFrame")
         TabContent.Name = name .. "_Content"
         TabContent.Parent = Content
@@ -372,7 +363,6 @@ function SimpleKavo.CreateLib(title, themeName)
             activateTab()
         end
 
-        -- ── Section / elements API (inalterada internamente) ───
         local TabFunctions = {}
 
         function TabFunctions:NewSection(name)

@@ -98,7 +98,7 @@ function SimpleKavo.CreateLib(title, themeName)
     Main.BackgroundColor3 = currentTheme.Background
     Main.BackgroundTransparency = 0.35          -- << TRANSPARENTE
     Main.Position = UDim2.new(0.3, 0, 0.3, 0)
-    Main.Size = UDim2.new(0, 500, 0, 370)
+    Main.Size = UDim2.new(0, 500, 0, 300)
     Main.ClipsDescendants = true
     Main.ZIndex = 1
 
@@ -246,7 +246,7 @@ function SimpleKavo.CreateLib(title, themeName)
         if Minimized then
             Tween(Main, {Size = UDim2.new(0, 0, 0, 0)})
         else
-            Tween(Main, {Size = UDim2.new(0, 500, 0, 370)})
+            Tween(Main, {Size = UDim2.new(0, 500, 0, 300)})
         end
     end)
 
@@ -1002,7 +1002,7 @@ function SimpleKavo.CreateLib(title, themeName)
             if Minimized then
                 Tween(Main, {Size = UDim2.new(0, 0, 0, 0)})
             else
-                Tween(Main, {Size = UDim2.new(0, 500, 0, 370)})
+                Tween(Main, {Size = UDim2.new(0, 500, 0, 300)})
             end
         end,
         ChangeTheme = function(newThemeName)

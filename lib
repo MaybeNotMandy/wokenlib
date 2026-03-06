@@ -698,6 +698,255 @@ function SimpleKavo.CreateLib(title, themeName)
                 return dropdownMethods
             end
 
+            -- ToggleDropdown: dropdown onde cada opção tem um toggle individual
+            -- callback(optionName: string, newState: bool, allStates: table)
+            function SectionFunctions:NewToggleDropdown(name, options, defaultStates, callback)
+                local elementOrder = #SectionContent:GetChildren()
+                local isOpen = false
+
+                -- Inicializa estados; defaultStates pode ser nil (todos false) ou tabela { [opt] = bool }
+                local states = {}
+                for _, opt in ipairs(options) do
+                    states[opt] = (defaultStates and defaultStates[opt]) or false
+                end
+
+                -- Frame externo que vai crescer ao abrir
+                local DropFrame = Instance.new("Frame")
+                DropFrame.Name = name .. "_ToggleDropdown"
+                DropFrame.BackgroundTransparency = 1
+                DropFrame.Size = UDim2.new(1, 0, 0, 35)
+                DropFrame.ClipsDescendants = true
+                DropFrame.LayoutOrder = elementOrder
+                DropFrame.ZIndex = 6
+
+                -- Botão header
+                local MainButton = Instance.new("TextButton")
+                MainButton.Name = "MainButton"
+                MainButton.Parent = DropFrame
+                MainButton.BackgroundColor3 = currentTheme.ElementColor
+                MainButton.BackgroundTransparency = 0.3
+                MainButton.Size = UDim2.new(1, 0, 0, 35)
+                MainButton.Font = Enum.Font.Gotham
+                MainButton.Text = name
+                MainButton.TextColor3 = currentTheme.TextColor
+                MainButton.TextSize = 14
+                MainButton.TextXAlignment = Enum.TextXAlignment.Left
+                MainButton.AutoButtonColor = false
+                MainButton.ZIndex = 7
+
+                local MainPadding = Instance.new("UIPadding")
+                MainPadding.PaddingLeft = UDim.new(0, 10)
+                MainPadding.Parent = MainButton
+
+                local MainCorner = Instance.new("UICorner")
+                MainCorner.CornerRadius = UDim.new(0, 4)
+                MainCorner.Parent = MainButton
+
+                local Arrow = Instance.new("TextLabel")
+                Arrow.Name = "Arrow"
+                Arrow.Parent = MainButton
+                Arrow.BackgroundTransparency = 1
+                Arrow.Size = UDim2.new(0, 20, 0, 20)
+                Arrow.Position = UDim2.new(1, -25, 0, 7)
+                Arrow.Text = "▼"
+                Arrow.TextColor3 = currentTheme.TextColor
+                Arrow.Font = Enum.Font.Gotham
+                Arrow.TextSize = 14
+                Arrow.ZIndex = 7
+
+                -- Frame das opções
+                local OptionsFrame = Instance.new("Frame")
+                OptionsFrame.Name = "OptionsFrame"
+                OptionsFrame.Parent = DropFrame
+                OptionsFrame.BackgroundColor3 = currentTheme.ElementColor
+                OptionsFrame.BackgroundTransparency = 0.25
+                OptionsFrame.Position = UDim2.new(0, 0, 0, 40)
+                OptionsFrame.Size = UDim2.new(1, 0, 0, 0)
+                OptionsFrame.Visible = false
+                OptionsFrame.ClipsDescendants = true
+                OptionsFrame.ZIndex = 8
+
+                local OptionsCorner = Instance.new("UICorner")
+                OptionsCorner.CornerRadius = UDim.new(0, 4)
+                OptionsCorner.Parent = OptionsFrame
+
+                local OptionsList = Instance.new("UIListLayout")
+                OptionsList.Parent = OptionsFrame
+                OptionsList.Padding = UDim.new(0, 0)
+                OptionsList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+                OptionsList.SortOrder = Enum.SortOrder.LayoutOrder
+
+                local ROW_H = 34
+                local rows = {}
+
+                for i, opt in ipairs(options) do
+                    local Row = Instance.new("Frame")
+                    Row.Name = opt .. "_Row"
+                    Row.Parent = OptionsFrame
+                    Row.BackgroundTransparency = 1
+                    Row.Size = UDim2.new(1, 0, 0, ROW_H)
+                    Row.LayoutOrder = i
+                    Row.ZIndex = 9
+
+                    -- Linha separadora (exceto na primeira)
+                    if i > 1 then
+                        local Sep = Instance.new("Frame")
+                        Sep.Name = "Sep"
+                        Sep.Parent = Row
+                        Sep.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                        Sep.BackgroundTransparency = 0.92
+                        Sep.BorderSizePixel = 0
+                        Sep.Size = UDim2.new(1, -20, 0, 1)
+                        Sep.Position = UDim2.new(0, 10, 0, 0)
+                        Sep.ZIndex = 9
+                    end
+
+                    local RowLabel = Instance.new("TextLabel")
+                    RowLabel.Name = "Label"
+                    RowLabel.Parent = Row
+                    RowLabel.BackgroundTransparency = 1
+                    RowLabel.Position = UDim2.new(0, 12, 0, 0)
+                    RowLabel.Size = UDim2.new(1, -60, 1, 0)
+                    RowLabel.Font = Enum.Font.Gotham
+                    RowLabel.Text = opt
+                    RowLabel.TextColor3 = currentTheme.TextColor
+                    RowLabel.TextSize = 13
+                    RowLabel.TextXAlignment = Enum.TextXAlignment.Left
+                    RowLabel.ZIndex = 10
+
+                    -- Toggle pill
+                    local ToggleBtn = Instance.new("TextButton")
+                    ToggleBtn.Name = "Toggle"
+                    ToggleBtn.Parent = Row
+                    ToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+                    ToggleBtn.Position = UDim2.new(1, -10, 0.5, 0)
+                    ToggleBtn.Size = UDim2.new(0, 32, 0, 18)
+                    ToggleBtn.BackgroundColor3 = currentTheme.ElementColor
+                    ToggleBtn.BackgroundTransparency = 0.1
+                    ToggleBtn.Text = ""
+                    ToggleBtn.AutoButtonColor = false
+                    ToggleBtn.ZIndex = 10
+
+                    local TCorner = Instance.new("UICorner")
+                    TCorner.CornerRadius = UDim.new(1, 0)
+                    TCorner.Parent = ToggleBtn
+
+                    -- Bolinha deslizante
+                    local Knob = Instance.new("Frame")
+                    Knob.Name = "Knob"
+                    Knob.Parent = ToggleBtn
+                    Knob.AnchorPoint = Vector2.new(0, 0.5)
+                    Knob.Position = UDim2.new(0, 2, 0.5, 0)
+                    Knob.Size = UDim2.new(0, 14, 0, 14)
+                    Knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+                    Knob.ZIndex = 11
+
+                    local KCorner = Instance.new("UICorner")
+                    KCorner.CornerRadius = UDim.new(1, 0)
+                    KCorner.Parent = Knob
+
+                    local function updateVisual(state)
+                        if state then
+                            Tween(ToggleBtn, {BackgroundColor3 = currentTheme.SchemeColor, BackgroundTransparency = 0}, 0.15)
+                            Tween(Knob, {Position = UDim2.new(1, -16, 0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}, 0.15)
+                        else
+                            Tween(ToggleBtn, {BackgroundColor3 = currentTheme.ElementColor, BackgroundTransparency = 0.1}, 0.15)
+                            Tween(Knob, {Position = UDim2.new(0, 2, 0.5, 0), BackgroundColor3 = Color3.fromRGB(200, 200, 200)}, 0.15)
+                        end
+                    end
+
+                    -- Estado inicial visual
+                    updateVisual(states[opt])
+
+                    ToggleBtn.MouseButton1Click:Connect(function()
+                        states[opt] = not states[opt]
+                        updateVisual(states[opt])
+                        if callback then callback(opt, states[opt], states) end
+                    end)
+
+                    -- Clicar na linha também alterna
+                    Row.InputBegan:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                            -- só dispara se não clicou direto no toggle
+                            states[opt] = not states[opt]
+                            updateVisual(states[opt])
+                            if callback then callback(opt, states[opt], states) end
+                        end
+                    end)
+                    -- Previne duplo disparo: o Row captura o input, o Toggle também
+                    -- Para evitar isso, apenas o ToggleBtn.MouseButton1Click dispara
+                    -- Removemos o Row.InputBegan para não dar duplo fire
+                    Row:FindFirstChild("InputBegan") -- não usado, limpamos abaixo
+
+                    rows[opt] = { row = Row, toggleBtn = ToggleBtn, knob = Knob, updateVisual = updateVisual }
+                end
+
+                -- Remove o listener duplicado do Row (clique no label também ativaria)
+                -- A solução limpa: só o ToggleBtn dispara callback. Já está assim acima.
+
+                local totalOptionsHeight = #options * ROW_H
+
+                local function toggleOpen()
+                    isOpen = not isOpen
+                    Tween(Arrow, {Rotation = isOpen and 180 or 0}, 0.2)
+                    if isOpen then
+                        OptionsFrame.Visible = true
+                        Tween(DropFrame, {Size = UDim2.new(1, 0, 0, 35 + 5 + totalOptionsHeight)}, 0.2)
+                        Tween(OptionsFrame, {Size = UDim2.new(1, 0, 0, totalOptionsHeight)}, 0.2)
+                    else
+                        Tween(DropFrame, {Size = UDim2.new(1, 0, 0, 35)}, 0.2)
+                        Tween(OptionsFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.2)
+                        task.delay(0.21, function()
+                            if not isOpen then OptionsFrame.Visible = false end
+                        end)
+                    end
+                end
+
+                MainButton.MouseButton1Click:Connect(toggleOpen)
+
+                -- Fecha ao clicar fora
+                local outsideConn
+                outsideConn = UserInputService.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 and isOpen then
+                        local pos = input.Position
+                        local fp = DropFrame.AbsolutePosition
+                        local fs = DropFrame.AbsoluteSize
+                        if not (pos.X >= fp.X and pos.X <= fp.X + fs.X and
+                                pos.Y >= fp.Y and pos.Y <= fp.Y + fs.Y) then
+                            toggleOpen()
+                        end
+                    end
+                end)
+                DropFrame.Destroying:Connect(function()
+                    outsideConn:Disconnect()
+                end)
+
+                DropFrame.Parent = SectionContent
+
+                -- API pública
+                local methods = {}
+                methods.Frame = DropFrame
+
+                -- Define o estado de uma opção programaticamente
+                function methods:Set(optName, value)
+                    if states[optName] == nil then return end
+                    states[optName] = value
+                    if rows[optName] then rows[optName].updateVisual(value) end
+                    if callback then callback(optName, value, states) end
+                end
+
+                -- Retorna o estado de uma opção (ou a tabela completa se sem argumento)
+                function methods:Get(optName)
+                    if optName then return states[optName] end
+                    -- Retorna cópia da tabela de estados
+                    local copy = {}
+                    for k, v in pairs(states) do copy[k] = v end
+                    return copy
+                end
+
+                return methods
+            end
+
             function SectionFunctions:NewTextBox(name, placeholder, callback)
                 local elementOrder = #SectionContent:GetChildren()
                 local TextBoxFrame = Instance.new("Frame")

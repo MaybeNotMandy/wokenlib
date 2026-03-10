@@ -1,9 +1,7 @@
 local SimpleKavo = {}
--- Serviços
 local TweenService = game:GetService("TweenService") or error("TweenService not available")
 local UserInputService = game:GetService("UserInputService") or error("UserInputService not available")
 local RunService = game:GetService("RunService") or error("RunService not available")
--- Temas pré-definidos
 local Themes = {
     DarkTheme = {
         SchemeColor = Color3.fromRGB(64, 64, 64),
@@ -453,7 +451,10 @@ function SimpleKavo.CreateLib(title, themeName)
                 return Button
             end
 
-            function SectionFunctions:NewToggle(name, description, callback)
+            -- CORRIGIDO: NewToggle agora aceita defaultState como 4o argumento
+            -- e inicializa State com ele, aplicando o visual correto na criação
+            -- Assinatura: NewToggle(name, description, callback, defaultState)
+            function SectionFunctions:NewToggle(name, description, callback, defaultState)
                 local elementOrder = #SectionContent:GetChildren()
                 local ToggleFrame = Instance.new("Frame")
                 ToggleFrame.Name = name .. "_Toggle"
@@ -507,22 +508,44 @@ function SimpleKavo.CreateLib(title, themeName)
                     DescLabel.ZIndex = 7
                 end
 
-                local State = false
+                -- CORRIGIDO: State inicializa com defaultState em vez de sempre false
+                local State = defaultState == true
                 local function UpdateToggle()
                     if State then
-                        Tween(ToggleButton, {BackgroundColor3 = currentTheme.SchemeColor, BackgroundTransparency = 0}, 0.2)
+                        ToggleButton.BackgroundColor3 = currentTheme.SchemeColor
+                        ToggleButton.BackgroundTransparency = 0
                     else
-                        Tween(ToggleButton, {BackgroundColor3 = currentTheme.ElementColor, BackgroundTransparency = 0.3}, 0.2)
+                        ToggleButton.BackgroundColor3 = currentTheme.ElementColor
+                        ToggleButton.BackgroundTransparency = 0.3
                     end
                 end
+                -- Aplica visual imediatamente sem tween para não depender de timing
                 UpdateToggle()
                 ToggleButton.MouseButton1Click:Connect(function()
                     State = not State
-                    UpdateToggle()
+                    Tween(ToggleButton, State and
+                        {BackgroundColor3 = currentTheme.SchemeColor, BackgroundTransparency = 0} or
+                        {BackgroundColor3 = currentTheme.ElementColor, BackgroundTransparency = 0.3}
+                    , 0.2)
                     if callback then callback(State) end
                 end)
                 ToggleFrame.Parent = SectionContent
-                return ToggleFrame
+
+                -- Retorna objeto com metodos Set/Get para controle externo
+                local toggleObj = { Frame = ToggleFrame }
+                function toggleObj:Set(value)
+                    if State == value then return end
+                    State = value
+                    Tween(ToggleButton, State and
+                        {BackgroundColor3 = currentTheme.SchemeColor, BackgroundTransparency = 0} or
+                        {BackgroundColor3 = currentTheme.ElementColor, BackgroundTransparency = 0.3}
+                    , 0.2)
+                    if callback then callback(State) end
+                end
+                function toggleObj:Get()
+                    return State
+                end
+                return toggleObj
             end
 
             function SectionFunctions:NewDropdown(name, options, defaultOption, callback)
@@ -698,19 +721,15 @@ function SimpleKavo.CreateLib(title, themeName)
                 return dropdownMethods
             end
 
-            -- ToggleDropdown: dropdown onde cada opção tem um toggle individual
-            -- callback(optionName: string, newState: bool, allStates: table)
             function SectionFunctions:NewToggleDropdown(name, options, defaultStates, callback)
                 local elementOrder = #SectionContent:GetChildren()
                 local isOpen = false
 
-                -- Inicializa estados; defaultStates pode ser nil (todos false) ou tabela { [opt] = bool }
                 local states = {}
                 for _, opt in ipairs(options) do
                     states[opt] = (defaultStates and defaultStates[opt]) or false
                 end
 
-                -- Frame externo que vai crescer ao abrir
                 local DropFrame = Instance.new("Frame")
                 DropFrame.Name = name .. "_ToggleDropdown"
                 DropFrame.BackgroundTransparency = 1
@@ -719,7 +738,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 DropFrame.LayoutOrder = elementOrder
                 DropFrame.ZIndex = 6
 
-                -- Botão header
                 local MainButton = Instance.new("TextButton")
                 MainButton.Name = "MainButton"
                 MainButton.Parent = DropFrame
@@ -754,7 +772,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 Arrow.TextSize = 14
                 Arrow.ZIndex = 7
 
-                -- Frame das opções
                 local OptionsFrame = Instance.new("Frame")
                 OptionsFrame.Name = "OptionsFrame"
                 OptionsFrame.Parent = DropFrame
@@ -788,7 +805,6 @@ function SimpleKavo.CreateLib(title, themeName)
                     Row.LayoutOrder = i
                     Row.ZIndex = 9
 
-                    -- Linha separadora (exceto na primeira)
                     if i > 1 then
                         local Sep = Instance.new("Frame")
                         Sep.Name = "Sep"
@@ -814,7 +830,6 @@ function SimpleKavo.CreateLib(title, themeName)
                     RowLabel.TextXAlignment = Enum.TextXAlignment.Left
                     RowLabel.ZIndex = 10
 
-                    -- Toggle pill
                     local ToggleBtn = Instance.new("TextButton")
                     ToggleBtn.Name = "Toggle"
                     ToggleBtn.Parent = Row
@@ -831,7 +846,6 @@ function SimpleKavo.CreateLib(title, themeName)
                     TCorner.CornerRadius = UDim.new(1, 0)
                     TCorner.Parent = ToggleBtn
 
-                    -- Bolinha deslizante
                     local Knob = Instance.new("Frame")
                     Knob.Name = "Knob"
                     Knob.Parent = ToggleBtn
@@ -855,7 +869,6 @@ function SimpleKavo.CreateLib(title, themeName)
                         end
                     end
 
-                    -- Estado inicial visual
                     updateVisual(states[opt])
 
                     ToggleBtn.MouseButton1Click:Connect(function()
@@ -864,25 +877,8 @@ function SimpleKavo.CreateLib(title, themeName)
                         if callback then callback(opt, states[opt], states) end
                     end)
 
-                    -- Clicar na linha também alterna
-                    Row.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            -- só dispara se não clicou direto no toggle
-                            states[opt] = not states[opt]
-                            updateVisual(states[opt])
-                            if callback then callback(opt, states[opt], states) end
-                        end
-                    end)
-                    -- Previne duplo disparo: o Row captura o input, o Toggle também
-                    -- Para evitar isso, apenas o ToggleBtn.MouseButton1Click dispara
-                    -- Removemos o Row.InputBegan para não dar duplo fire
-                    Row:FindFirstChild("InputBegan") -- não usado, limpamos abaixo
-
                     rows[opt] = { row = Row, toggleBtn = ToggleBtn, knob = Knob, updateVisual = updateVisual }
                 end
-
-                -- Remove o listener duplicado do Row (clique no label também ativaria)
-                -- A solução limpa: só o ToggleBtn dispara callback. Já está assim acima.
 
                 local totalOptionsHeight = #options * ROW_H
 
@@ -904,7 +900,6 @@ function SimpleKavo.CreateLib(title, themeName)
 
                 MainButton.MouseButton1Click:Connect(toggleOpen)
 
-                -- Fecha ao clicar fora
                 local outsideConn
                 outsideConn = UserInputService.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 and isOpen then
@@ -923,11 +918,9 @@ function SimpleKavo.CreateLib(title, themeName)
 
                 DropFrame.Parent = SectionContent
 
-                -- API pública
                 local methods = {}
                 methods.Frame = DropFrame
 
-                -- Define o estado de uma opção programaticamente
                 function methods:Set(optName, value)
                     if states[optName] == nil then return end
                     states[optName] = value
@@ -935,10 +928,8 @@ function SimpleKavo.CreateLib(title, themeName)
                     if callback then callback(optName, value, states) end
                 end
 
-                -- Retorna o estado de uma opção (ou a tabela completa se sem argumento)
                 function methods:Get(optName)
                     if optName then return states[optName] end
-                    -- Retorna cópia da tabela de estados
                     local copy = {}
                     for k, v in pairs(states) do copy[k] = v end
                     return copy
@@ -1016,6 +1007,8 @@ function SimpleKavo.CreateLib(title, themeName)
                 return methods
             end
 
+            -- CORRIGIDO: NewSlider agora aceita defaultValue separado de default para display
+            -- e chama o callback na inicialização para sincronizar o valor lógico
             function SectionFunctions:NewSlider(name, min, max, default, callback)
                 local elementOrder = #SectionContent:GetChildren()
                 local SliderFrame = Instance.new("Frame")
@@ -1031,7 +1024,7 @@ function SimpleKavo.CreateLib(title, themeName)
                 SliderText.BackgroundTransparency = 1
                 SliderText.Size = UDim2.new(1, 0, 0.4, 0)
                 SliderText.Font = Enum.Font.Gotham
-                SliderText.Text = name .. ": " .. default
+                SliderText.Text = name .. ": " .. math.floor(default)
                 SliderText.TextColor3 = currentTheme.TextColor
                 SliderText.TextSize = 14
                 SliderText.TextXAlignment = Enum.TextXAlignment.Left
@@ -1052,10 +1045,13 @@ function SimpleKavo.CreateLib(title, themeName)
                 SliderFill.Name = "Fill"
                 SliderFill.Parent = SliderBar
                 SliderFill.BackgroundColor3 = currentTheme.SchemeColor
-                SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+                SliderFill.Size = UDim2.new(math.clamp((default - min) / (max - min), 0, 1), 0, 1, 0)
                 SliderFill.ZIndex = 8
                 local SliderFillCorner = Instance.new("UICorner")
                 SliderFillCorner.Parent = SliderFill
+
+                -- CORRIGIDO: chama callback na inicialização para sincronizar valor lógico
+                if callback then callback(default) end
 
                 local dragging = false
                 local function UpdateSlider(value)
@@ -1085,7 +1081,21 @@ function SimpleKavo.CreateLib(title, themeName)
                 end)
 
                 SliderFrame.Parent = SectionContent
-                return SliderFrame
+
+                -- Retorna objeto com Set/Get para controle externo
+                local sliderObj = { Frame = SliderFrame }
+                function sliderObj:Set(value)
+                    value = math.clamp(value, min, max)
+                    local percent = (value - min) / (max - min)
+                    SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                    SliderText.Text = name .. ": " .. math.floor(value)
+                    if callback then callback(value) end
+                end
+                function sliderObj:Get()
+                    local pct = SliderFill.Size.X.Scale
+                    return min + (max - min) * pct
+                end
+                return sliderObj
             end
 
             function SectionFunctions:NewKeybind(name, defaultKey, callback)

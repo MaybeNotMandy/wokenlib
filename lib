@@ -451,9 +451,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 return Button
             end
 
-            -- CORRIGIDO: NewToggle agora aceita defaultState como 4o argumento
-            -- e inicializa State com ele, aplicando o visual correto na criação
-            -- Assinatura: NewToggle(name, description, callback, defaultState)
             function SectionFunctions:NewToggle(name, description, callback, defaultState)
                 local elementOrder = #SectionContent:GetChildren()
                 local ToggleFrame = Instance.new("Frame")
@@ -508,7 +505,6 @@ function SimpleKavo.CreateLib(title, themeName)
                     DescLabel.ZIndex = 7
                 end
 
-                -- CORRIGIDO: State inicializa com defaultState em vez de sempre false
                 local State = defaultState == true
                 local function UpdateToggle()
                     if State then
@@ -519,7 +515,6 @@ function SimpleKavo.CreateLib(title, themeName)
                         ToggleButton.BackgroundTransparency = 0.3
                     end
                 end
-                -- Aplica visual imediatamente sem tween para não depender de timing
                 UpdateToggle()
                 ToggleButton.MouseButton1Click:Connect(function()
                     State = not State
@@ -531,7 +526,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 end)
                 ToggleFrame.Parent = SectionContent
 
-                -- Retorna objeto com metodos Set/Get para controle externo
                 local toggleObj = { Frame = ToggleFrame }
                 function toggleObj:Set(value)
                     if State == value then return end
@@ -1007,8 +1001,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 return methods
             end
 
-            -- CORRIGIDO: NewSlider agora aceita defaultValue separado de default para display
-            -- e chama o callback na inicialização para sincronizar o valor lógico
             function SectionFunctions:NewSlider(name, min, max, default, callback)
                 local elementOrder = #SectionContent:GetChildren()
                 local SliderFrame = Instance.new("Frame")
@@ -1050,7 +1042,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 local SliderFillCorner = Instance.new("UICorner")
                 SliderFillCorner.Parent = SliderFill
 
-                -- CORRIGIDO: chama callback na inicialização para sincronizar valor lógico
                 if callback then callback(default) end
 
                 local dragging = false
@@ -1082,7 +1073,6 @@ function SimpleKavo.CreateLib(title, themeName)
 
                 SliderFrame.Parent = SectionContent
 
-                -- Retorna objeto com Set/Get para controle externo
                 local sliderObj = { Frame = SliderFrame }
                 function sliderObj:Set(value)
                     value = math.clamp(value, min, max)
@@ -1168,10 +1158,13 @@ function SimpleKavo.CreateLib(title, themeName)
                         Tween(KeybindButton, {BackgroundColor3 = currentTheme.ElementColor}, 0.1)
                     end
                 end)
+
                 KeybindButton.MouseButton1Click:Connect(function()
-                    listening = true
-                    KeybindButton.Text = "..."
-                    Tween(KeybindButton, {BackgroundColor3 = currentTheme.SchemeColor}, 0.2)
+                    task.defer(function()
+                        listening = true
+                        KeybindButton.Text = "..."
+                        Tween(KeybindButton, {BackgroundColor3 = currentTheme.SchemeColor}, 0.2)
+                    end)
                 end)
 
                 local inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)

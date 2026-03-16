@@ -196,7 +196,7 @@ function SimpleKavo.CreateLib(title, themeName)
     TabsHolder.Name = "TabsHolder"
     TabsHolder.Parent = TabsScroll
     TabsHolder.BackgroundTransparency = 1
-    TabsHolder.Size = UDim2.new(1, 0, 1, 0)
+    TabsHolder.Size = UDim2.new(0, 0, 1, 0)
     TabsHolder.AutomaticSize = Enum.AutomaticSize.X
     TabsHolder.ZIndex = 3
 

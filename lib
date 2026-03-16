@@ -1106,6 +1106,10 @@ function SimpleKavo.CreateLib(title, themeName)
                 local elementOrder = #SectionContent:GetChildren()
                 local currentKey = StringToKeyCode(defaultKey)
                 local listening = false
+                -- CORRIGIDO: justBound ignora o primeiro disparo da tecla
+                -- logo após ela ser definida como keybind, evitando que o
+                -- mesmo input de seleção acione imediatamente a função.
+                local justBound = false
 
                 local KeybindFrame = Instance.new("Frame")
                 KeybindFrame.Name = name .. "_Keybind"
@@ -1158,7 +1162,6 @@ function SimpleKavo.CreateLib(title, themeName)
                         Tween(KeybindButton, {BackgroundColor3 = currentTheme.ElementColor}, 0.1)
                     end
                 end)
-
                 KeybindButton.MouseButton1Click:Connect(function()
                     task.defer(function()
                         listening = true
@@ -1183,9 +1186,15 @@ function SimpleKavo.CreateLib(title, themeName)
                         KeybindButton.Text = newKey.Name ~= "Unknown" and newKey.Name or "[None]"
                         Tween(KeybindButton, {BackgroundColor3 = currentTheme.ElementColor}, 0.2)
                         listening = false
+                        justBound = true -- ignora o próximo disparo desta tecla
                         if callback then callback(currentKey) end
                     elseif not gameProcessed and input.KeyCode == currentKey then
-                        if callback and not listening then callback(currentKey) end
+                        if justBound then
+                            -- descarta o input de seleção e reseta a flag
+                            justBound = false
+                        elseif callback and not listening then
+                            callback(currentKey)
+                        end
                     end
                 end)
 

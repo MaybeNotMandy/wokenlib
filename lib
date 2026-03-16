@@ -451,9 +451,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 return Button
             end
 
-            -- CORRIGIDO: NewToggle agora aceita defaultState como 4o argumento
-            -- e inicializa State com ele, aplicando o visual correto na criação
-            -- Assinatura: NewToggle(name, description, callback, defaultState)
             function SectionFunctions:NewToggle(name, description, callback, defaultState)
                 local elementOrder = #SectionContent:GetChildren()
                 local ToggleFrame = Instance.new("Frame")
@@ -508,7 +505,6 @@ function SimpleKavo.CreateLib(title, themeName)
                     DescLabel.ZIndex = 7
                 end
 
-                -- CORRIGIDO: State inicializa com defaultState em vez de sempre false
                 local State = defaultState == true
                 local function UpdateToggle()
                     if State then
@@ -519,7 +515,6 @@ function SimpleKavo.CreateLib(title, themeName)
                         ToggleButton.BackgroundTransparency = 0.3
                     end
                 end
-                -- Aplica visual imediatamente sem tween para não depender de timing
                 UpdateToggle()
                 ToggleButton.MouseButton1Click:Connect(function()
                     State = not State
@@ -531,7 +526,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 end)
                 ToggleFrame.Parent = SectionContent
 
-                -- Retorna objeto com metodos Set/Get para controle externo
                 local toggleObj = { Frame = ToggleFrame }
                 function toggleObj:Set(value)
                     if State == value then return end
@@ -1007,8 +1001,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 return methods
             end
 
-            -- CORRIGIDO: NewSlider agora aceita defaultValue separado de default para display
-            -- e chama o callback na inicialização para sincronizar o valor lógico
             function SectionFunctions:NewSlider(name, min, max, default, callback)
                 local elementOrder = #SectionContent:GetChildren()
                 local SliderFrame = Instance.new("Frame")
@@ -1050,7 +1042,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 local SliderFillCorner = Instance.new("UICorner")
                 SliderFillCorner.Parent = SliderFill
 
-                -- CORRIGIDO: chama callback na inicialização para sincronizar valor lógico
                 if callback then callback(default) end
 
                 local dragging = false
@@ -1082,13 +1073,106 @@ function SimpleKavo.CreateLib(title, themeName)
 
                 SliderFrame.Parent = SectionContent
 
-                -- Retorna objeto com Set/Get para controle externo
                 local sliderObj = { Frame = SliderFrame }
                 function sliderObj:Set(value)
                     value = math.clamp(value, min, max)
                     local percent = (value - min) / (max - min)
                     SliderFill.Size = UDim2.new(percent, 0, 1, 0)
                     SliderText.Text = name .. ": " .. math.floor(value)
+                    if callback then callback(value) end
+                end
+                function sliderObj:Get()
+                    local pct = SliderFill.Size.X.Scale
+                    return min + (max - min) * pct
+                end
+                return sliderObj
+            end
+
+            function SectionFunctions:NewSliderFloat(name, min, max, default, decimals, callback)
+                if type(decimals) == "function" then
+                    callback = decimals
+                    decimals = 2
+                end
+                decimals = decimals or 2
+                local fmt = "%." .. tostring(math.clamp(math.floor(decimals), 0, 10)) .. "f"
+
+                local elementOrder = #SectionContent:GetChildren()
+                local SliderFrame = Instance.new("Frame")
+                SliderFrame.Name = name .. "_SliderFloat"
+                SliderFrame.BackgroundTransparency = 1
+                SliderFrame.Size = UDim2.new(1, 0, 0, 50)
+                SliderFrame.LayoutOrder = elementOrder
+                SliderFrame.ZIndex = 6
+
+                local SliderText = Instance.new("TextLabel")
+                SliderText.Name = "Text"
+                SliderText.Parent = SliderFrame
+                SliderText.BackgroundTransparency = 1
+                SliderText.Size = UDim2.new(1, 0, 0.4, 0)
+                SliderText.Font = Enum.Font.Gotham
+                SliderText.Text = name .. ": " .. string.format(fmt, default)
+                SliderText.TextColor3 = currentTheme.TextColor
+                SliderText.TextSize = 14
+                SliderText.TextXAlignment = Enum.TextXAlignment.Left
+                SliderText.ZIndex = 7
+
+                local SliderBar = Instance.new("Frame")
+                SliderBar.Name = "Bar"
+                SliderBar.Parent = SliderFrame
+                SliderBar.BackgroundColor3 = currentTheme.ElementColor
+                SliderBar.BackgroundTransparency = 0.3
+                SliderBar.Size = UDim2.new(1, 0, 0.2, 0)
+                SliderBar.Position = UDim2.new(0, 0, 0.6, 0)
+                SliderBar.ZIndex = 7
+                local SliderCorner = Instance.new("UICorner")
+                SliderCorner.Parent = SliderBar
+
+                local SliderFill = Instance.new("Frame")
+                SliderFill.Name = "Fill"
+                SliderFill.Parent = SliderBar
+                SliderFill.BackgroundColor3 = currentTheme.SchemeColor
+                SliderFill.Size = UDim2.new(math.clamp((default - min) / (max - min), 0, 1), 0, 1, 0)
+                SliderFill.ZIndex = 8
+                local SliderFillCorner = Instance.new("UICorner")
+                SliderFillCorner.Parent = SliderFill
+
+                if callback then callback(default) end
+
+                local dragging = false
+                local function UpdateSlider(value)
+                    local percent = math.clamp((value - min) / (max - min), 0, 1)
+                    Tween(SliderFill, {Size = UDim2.new(percent, 0, 1, 0)}, 0.1)
+                    SliderText.Text = name .. ": " .. string.format(fmt, value)
+                    if callback then callback(value) end
+                end
+
+                SliderBar.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = true
+                    end
+                end)
+                SliderBar.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = false
+                    end
+                end)
+                UserInputService.InputChanged:Connect(function(input)
+                    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                        local pos = input.Position.X - SliderBar.AbsolutePosition.X
+                        local percent = math.clamp(pos / SliderBar.AbsoluteSize.X, 0, 1)
+                        local value = min + (max - min) * percent
+                        UpdateSlider(value)
+                    end
+                end)
+
+                SliderFrame.Parent = SectionContent
+
+                local sliderObj = { Frame = SliderFrame }
+                function sliderObj:Set(value)
+                    value = math.clamp(value, min, max)
+                    local percent = (value - min) / (max - min)
+                    SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                    SliderText.Text = name .. ": " .. string.format(fmt, value)
                     if callback then callback(value) end
                 end
                 function sliderObj:Get()

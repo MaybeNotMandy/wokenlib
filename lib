@@ -318,9 +318,10 @@ function SimpleKavo.CreateLib(title, themeName)
 
         if direction == 1 then
             for _, btn in ipairs(buttons) do
-                local btnLocalEnd = (btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X) + scrollX + btn.AbsoluteSize.X
-                if btnLocalEnd > visibleEnd + 1 then
-                    local newX = math.max(0, btnLocalEnd - visibleSize)
+                local btnLocalStart = (btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X) + scrollX
+                local btnLocalEnd = btnLocalStart + btn.AbsoluteSize.X
+                if btnLocalStart >= visibleEnd - 1 then
+                    local newX = btnLocalStart
                     Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.25)
                     return
                 end
@@ -329,8 +330,9 @@ function SimpleKavo.CreateLib(title, themeName)
             for i = #buttons, 1, -1 do
                 local btn = buttons[i]
                 local btnLocalStart = (btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X) + scrollX
-                if btnLocalStart < scrollX - 1 then
-                    local newX = math.max(0, btnLocalStart)
+                local btnLocalEnd = btnLocalStart + btn.AbsoluteSize.X
+                if btnLocalEnd <= scrollX + 1 then
+                    local newX = math.max(0, btnLocalEnd - visibleSize)
                     Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.25)
                     return
                 end

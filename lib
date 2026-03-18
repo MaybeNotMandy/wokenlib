@@ -180,53 +180,13 @@ function SimpleKavo.CreateLib(title, themeName)
     TabBarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     TabBarStroke.Parent = TabBar
 
-    local ArrowLeft = Instance.new("TextButton")
-    ArrowLeft.Name = "ArrowLeft"
-    ArrowLeft.Parent = TabBar
-    ArrowLeft.BackgroundTransparency = 1
-    ArrowLeft.Position = UDim2.new(0, 0, 0, 0)
-    ArrowLeft.Size = UDim2.new(0, 20, 1, 0)
-    ArrowLeft.Font = Enum.Font.GothamSemibold
-    ArrowLeft.Text = "‹"
-    ArrowLeft.TextColor3 = currentTheme.TextColor
-    ArrowLeft.TextSize = 16
-    ArrowLeft.AutoButtonColor = false
-    ArrowLeft.ZIndex = 5
-    ArrowLeft.Visible = false
-
-    local ArrowRight = Instance.new("TextButton")
-    ArrowRight.Name = "ArrowRight"
-    ArrowRight.Parent = TabBar
-    ArrowRight.BackgroundTransparency = 1
-    ArrowRight.AnchorPoint = Vector2.new(1, 0)
-    ArrowRight.Position = UDim2.new(1, 0, 0, 0)
-    ArrowRight.Size = UDim2.new(0, 20, 1, 0)
-    ArrowRight.Font = Enum.Font.GothamSemibold
-    ArrowRight.Text = "›"
-    ArrowRight.TextColor3 = currentTheme.TextColor
-    ArrowRight.TextSize = 16
-    ArrowRight.AutoButtonColor = false
-    ArrowRight.ZIndex = 5
-    ArrowRight.Visible = false
-
-    local TabsScroll = Instance.new("ScrollingFrame")
-    TabsScroll.Name = "TabsScroll"
-    TabsScroll.Parent = TabBar
-    TabsScroll.BackgroundTransparency = 1
-    TabsScroll.Position = UDim2.new(0, 4, 0, 2)
-    TabsScroll.Size = UDim2.new(1, -8, 1, -2)
-    TabsScroll.ScrollBarThickness = 0
-    TabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
-    TabsScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
-    TabsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    TabsScroll.ZIndex = 3
-
+    -- Tabs fill the full width without scrolling
     local TabsHolder = Instance.new("Frame")
     TabsHolder.Name = "TabsHolder"
-    TabsHolder.Parent = TabsScroll
+    TabsHolder.Parent = TabBar
     TabsHolder.BackgroundTransparency = 1
-    TabsHolder.Size = UDim2.new(0, 0, 1, 0)
-    TabsHolder.AutomaticSize = Enum.AutomaticSize.X
+    TabsHolder.Position = UDim2.new(0, 4, 0, 2)
+    TabsHolder.Size = UDim2.new(1, -8, 1, -2)
     TabsHolder.ZIndex = 3
 
     local TabsList = Instance.new("UIListLayout")
@@ -235,38 +195,6 @@ function SimpleKavo.CreateLib(title, themeName)
     TabsList.SortOrder = Enum.SortOrder.LayoutOrder
     TabsList.FillDirection = Enum.FillDirection.Horizontal
     TabsList.VerticalAlignment = Enum.VerticalAlignment.Center
-
-    local function updateArrows()
-        local canvasW = TabsScroll.AbsoluteCanvasSize.X
-        local frameW = TabsScroll.AbsoluteSize.X
-        local pos = TabsScroll.CanvasPosition.X
-        local hasOverflow = canvasW > frameW + 2
-
-        ArrowLeft.Visible = hasOverflow and pos > 1
-        ArrowRight.Visible = hasOverflow and pos < canvasW - frameW - 1
-
-        local leftPad = ArrowLeft.Visible and 20 or 4
-        local rightPad = ArrowRight.Visible and 20 or 4
-        TabsScroll.Position = UDim2.new(0, leftPad, 0, 2)
-        TabsScroll.Size = UDim2.new(1, -(leftPad + rightPad), 1, -2)
-    end
-
-    TabsScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(updateArrows)
-    TabsScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateArrows)
-    TabsHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateArrows)
-
-    local SCROLL_STEP = 120
-
-    ArrowLeft.MouseButton1Click:Connect(function()
-        local newX = math.max(0, TabsScroll.CanvasPosition.X - SCROLL_STEP)
-        Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.18)
-    end)
-
-    ArrowRight.MouseButton1Click:Connect(function()
-        local maxX = TabsScroll.AbsoluteCanvasSize.X - TabsScroll.AbsoluteSize.X
-        local newX = math.min(maxX, TabsScroll.CanvasPosition.X + SCROLL_STEP)
-        Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.18)
-    end)
 
     local Content = Instance.new("Frame")
     Content.Name = "Content"
@@ -294,6 +222,21 @@ function SimpleKavo.CreateLib(title, themeName)
     local tabsOrder = {}
     local currentTab = nil
 
+    -- Recalculates each tab button width so all tabs share the full bar width equally
+    local function recalcTabWidths()
+        local count = #tabsOrder
+        if count == 0 then return end
+        local totalPadding = (count - 1) * 4  -- TabsList.Padding = 4px between tabs
+        local availableWidth = TabsHolder.AbsoluteSize.X - totalPadding
+        local tabWidth = math.floor(availableWidth / count)
+        for i, tab in ipairs(tabsOrder) do
+            tab.button.Size = UDim2.new(0, tabWidth, 0, 24)
+        end
+    end
+
+    -- Re-run on resize in case the window size changes
+    TabsHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(recalcTabWidths)
+
     local function updateTheme(newThemeName)
         if not Themes[newThemeName] then return end
         currentTheme = Themes[newThemeName]
@@ -301,8 +244,6 @@ function SimpleKavo.CreateLib(title, themeName)
         Header.BackgroundColor3 = currentTheme.Header
         TabBar.BackgroundColor3 = currentTheme.Header
         Title.TextColor3 = currentTheme.TextColor
-        ArrowLeft.TextColor3 = currentTheme.TextColor
-        ArrowRight.TextColor3 = currentTheme.TextColor
         for _, tab in pairs(TabsHolder:GetChildren()) do
             if tab:IsA("TextButton") then
                 tab.TextColor3 = currentTheme.TextColor
@@ -348,7 +289,7 @@ function SimpleKavo.CreateLib(title, themeName)
         TabButton.Parent = TabsHolder
         TabButton.BackgroundColor3 = currentTheme.ElementColor
         TabButton.BackgroundTransparency = 0.4
-        TabButton.Size = UDim2.new(0, 90, 0, 24)
+        TabButton.Size = UDim2.new(0, 90, 0, 24)  -- will be overridden by recalcTabWidths
         TabButton.Font = Enum.Font.GothamSemibold
         TabButton.Text = name
         TabButton.TextColor3 = currentTheme.TextColor
@@ -389,6 +330,9 @@ function SimpleKavo.CreateLib(title, themeName)
         TabContentList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
         table.insert(tabsOrder, { button = TabButton, content = TabContent, line = ActiveLine })
+
+        -- Recalculate widths now that a new tab was added
+        recalcTabWidths()
 
         local function activateTab()
             for _, tab in ipairs(tabsOrder) do

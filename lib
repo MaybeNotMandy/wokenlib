@@ -255,7 +255,7 @@ function SimpleKavo.CreateLib(title, themeName)
     TabsScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateArrows)
     TabsHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateArrows)
 
-    local SCROLL_STEP = 100
+    local SCROLL_STEP = 120
 
     ArrowLeft.MouseButton1Click:Connect(function()
         local newX = math.max(0, TabsScroll.CanvasPosition.X - SCROLL_STEP)

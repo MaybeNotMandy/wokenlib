@@ -185,15 +185,14 @@ function SimpleKavo.CreateLib(title, themeName)
     ArrowLeft.Parent = TabBar
     ArrowLeft.BackgroundTransparency = 1
     ArrowLeft.Position = UDim2.new(0, 0, 0, 0)
-    ArrowLeft.Size = UDim2.new(0, 22, 1, 0)
+    ArrowLeft.Size = UDim2.new(0, 20, 1, 0)
+    ArrowLeft.Font = Enum.Font.GothamSemibold
     ArrowLeft.Text = "‹"
-    ArrowLeft.Font = Enum.Font.GothamBold
-    ArrowLeft.TextSize = 20
     ArrowLeft.TextColor3 = currentTheme.TextColor
-    ArrowLeft.TextTransparency = 0.4
+    ArrowLeft.TextSize = 16
     ArrowLeft.AutoButtonColor = false
+    ArrowLeft.ZIndex = 5
     ArrowLeft.Visible = false
-    ArrowLeft.ZIndex = 6
 
     local ArrowRight = Instance.new("TextButton")
     ArrowRight.Name = "ArrowRight"
@@ -201,50 +200,14 @@ function SimpleKavo.CreateLib(title, themeName)
     ArrowRight.BackgroundTransparency = 1
     ArrowRight.AnchorPoint = Vector2.new(1, 0)
     ArrowRight.Position = UDim2.new(1, 0, 0, 0)
-    ArrowRight.Size = UDim2.new(0, 22, 1, 0)
+    ArrowRight.Size = UDim2.new(0, 20, 1, 0)
+    ArrowRight.Font = Enum.Font.GothamSemibold
     ArrowRight.Text = "›"
-    ArrowRight.Font = Enum.Font.GothamBold
-    ArrowRight.TextSize = 20
     ArrowRight.TextColor3 = currentTheme.TextColor
-    ArrowRight.TextTransparency = 0.4
+    ArrowRight.TextSize = 16
     ArrowRight.AutoButtonColor = false
+    ArrowRight.ZIndex = 5
     ArrowRight.Visible = false
-    ArrowRight.ZIndex = 6
-
-    local FadeLeft = Instance.new("Frame")
-    FadeLeft.Name = "FadeLeft"
-    FadeLeft.Parent = TabBar
-    FadeLeft.BackgroundColor3 = currentTheme.Header
-    FadeLeft.BorderSizePixel = 0
-    FadeLeft.Position = UDim2.new(0, 22, 0, 0)
-    FadeLeft.Size = UDim2.new(0, 18, 1, 0)
-    FadeLeft.Visible = false
-    FadeLeft.ZIndex = 5
-
-    local FadeLeftGrad = Instance.new("UIGradient")
-    FadeLeftGrad.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(1, 1),
-    })
-    FadeLeftGrad.Parent = FadeLeft
-
-    local FadeRight = Instance.new("Frame")
-    FadeRight.Name = "FadeRight"
-    FadeRight.Parent = TabBar
-    FadeRight.BackgroundColor3 = currentTheme.Header
-    FadeRight.BorderSizePixel = 0
-    FadeRight.AnchorPoint = Vector2.new(1, 0)
-    FadeRight.Position = UDim2.new(1, -22, 0, 0)
-    FadeRight.Size = UDim2.new(0, 18, 1, 0)
-    FadeRight.Visible = false
-    FadeRight.ZIndex = 5
-
-    local FadeRightGrad = Instance.new("UIGradient")
-    FadeRightGrad.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(1, 0),
-    })
-    FadeRightGrad.Parent = FadeRight
 
     local TabsScroll = Instance.new("ScrollingFrame")
     TabsScroll.Name = "TabsScroll"
@@ -274,89 +237,36 @@ function SimpleKavo.CreateLib(title, themeName)
     TabsList.VerticalAlignment = Enum.VerticalAlignment.Center
 
     local function updateArrows()
-        local canvas = TabsScroll.CanvasPosition.X
-        local maxScroll = TabsScroll.AbsoluteCanvasSize.X - TabsScroll.AbsoluteSize.X
+        local canvasW = TabsScroll.AbsoluteCanvasSize.X
+        local frameW = TabsScroll.AbsoluteSize.X
+        local pos = TabsScroll.CanvasPosition.X
+        local hasOverflow = canvasW > frameW + 2
 
-        local showLeft  = canvas > 1
-        local showRight = maxScroll > 1 and canvas < maxScroll - 1
+        ArrowLeft.Visible = hasOverflow and pos > 1
+        ArrowRight.Visible = hasOverflow and pos < canvasW - frameW - 1
 
-        ArrowLeft.Visible  = showLeft
-        FadeLeft.Visible   = showLeft
-        ArrowRight.Visible = showRight
-        FadeRight.Visible  = showRight
-
-        local leftOffset  = showLeft  and 22 or 4
-        local rightOffset = showRight and 22 or 4
-        TabsScroll.Position = UDim2.new(0, leftOffset, 0, 2)
-        TabsScroll.Size     = UDim2.new(1, -(leftOffset + rightOffset), 1, -2)
+        local leftPad = ArrowLeft.Visible and 20 or 4
+        local rightPad = ArrowRight.Visible and 20 or 4
+        TabsScroll.Position = UDim2.new(0, leftPad, 0, 2)
+        TabsScroll.Size = UDim2.new(1, -(leftPad + rightPad), 1, -2)
     end
 
     TabsScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(updateArrows)
     TabsScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateArrows)
-    TabsHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        task.defer(updateArrows)
-    end)
+    TabsHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateArrows)
 
-    local function getSortedTabButtons()
-        local buttons = {}
-        for _, child in ipairs(TabsHolder:GetChildren()) do
-            if child:IsA("TextButton") then
-                table.insert(buttons, child)
-            end
-        end
-        table.sort(buttons, function(a, b)
-            return a.LayoutOrder < b.LayoutOrder
-        end)
-        return buttons
-    end
-
-    local function scrollToNextTab(direction)
-        local scrollX = TabsScroll.CanvasPosition.X
-        local visibleSize = TabsScroll.AbsoluteSize.X
-        local visibleEnd = scrollX + visibleSize
-        local buttons = getSortedTabButtons()
-
-        if direction == 1 then
-            for _, btn in ipairs(buttons) do
-                local btnLocalStart = (btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X) + scrollX
-                local btnLocalEnd = btnLocalStart + btn.AbsoluteSize.X
-                if btnLocalStart >= visibleEnd - 1 then
-                    local newX = btnLocalStart
-                    Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.25)
-                    return
-                end
-            end
-        else
-            for i = #buttons, 1, -1 do
-                local btn = buttons[i]
-                local btnLocalStart = (btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X) + scrollX
-                local btnLocalEnd = btnLocalStart + btn.AbsoluteSize.X
-                if btnLocalEnd <= scrollX + 1 then
-                    local newX = math.max(0, btnLocalEnd - visibleSize)
-                    Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.25)
-                    return
-                end
-            end
-            Tween(TabsScroll, {CanvasPosition = Vector2.new(0, 0)}, 0.25)
-        end
-    end
+    local SCROLL_STEP = 94
 
     ArrowLeft.MouseButton1Click:Connect(function()
-        scrollToNextTab(-1)
+        local newX = math.max(0, TabsScroll.CanvasPosition.X - SCROLL_STEP)
+        Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.18)
     end)
 
     ArrowRight.MouseButton1Click:Connect(function()
-        scrollToNextTab(1)
+        local maxX = TabsScroll.AbsoluteCanvasSize.X - TabsScroll.AbsoluteSize.X
+        local newX = math.min(maxX, TabsScroll.CanvasPosition.X + SCROLL_STEP)
+        Tween(TabsScroll, {CanvasPosition = Vector2.new(newX, 0)}, 0.18)
     end)
-
-    for _, arrow in ipairs({ ArrowLeft, ArrowRight }) do
-        arrow.MouseEnter:Connect(function()
-            Tween(arrow, { TextTransparency = 0 }, 0.1)
-        end)
-        arrow.MouseLeave:Connect(function()
-            Tween(arrow, { TextTransparency = 0.4 }, 0.1)
-        end)
-    end
 
     local Content = Instance.new("Frame")
     Content.Name = "Content"
@@ -393,8 +303,6 @@ function SimpleKavo.CreateLib(title, themeName)
         Title.TextColor3 = currentTheme.TextColor
         ArrowLeft.TextColor3 = currentTheme.TextColor
         ArrowRight.TextColor3 = currentTheme.TextColor
-        FadeLeft.BackgroundColor3 = currentTheme.Header
-        FadeRight.BackgroundColor3 = currentTheme.Header
         for _, tab in pairs(TabsHolder:GetChildren()) do
             if tab:IsA("TextButton") then
                 tab.TextColor3 = currentTheme.TextColor

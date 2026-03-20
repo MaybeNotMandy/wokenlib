@@ -180,7 +180,6 @@ function SimpleKavo.CreateLib(title, themeName)
     TabBarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     TabBarStroke.Parent = TabBar
 
-    -- Tabs fill the full width without scrolling
     local TabsHolder = Instance.new("Frame")
     TabsHolder.Name = "TabsHolder"
     TabsHolder.Parent = TabBar
@@ -222,11 +221,10 @@ function SimpleKavo.CreateLib(title, themeName)
     local tabsOrder = {}
     local currentTab = nil
 
-    -- Recalculates each tab button width so all tabs share the full bar width equally
     local function recalcTabWidths()
         local count = #tabsOrder
         if count == 0 then return end
-        local totalPadding = (count - 1) * 4  -- TabsList.Padding = 4px between tabs
+        local totalPadding = (count - 1) * 4
         local availableWidth = TabsHolder.AbsoluteSize.X - totalPadding
         local tabWidth = math.floor(availableWidth / count)
         for i, tab in ipairs(tabsOrder) do
@@ -234,7 +232,6 @@ function SimpleKavo.CreateLib(title, themeName)
         end
     end
 
-    -- Re-run on resize in case the window size changes
     TabsHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(recalcTabWidths)
 
     local function updateTheme(newThemeName)
@@ -289,7 +286,7 @@ function SimpleKavo.CreateLib(title, themeName)
         TabButton.Parent = TabsHolder
         TabButton.BackgroundColor3 = currentTheme.ElementColor
         TabButton.BackgroundTransparency = 0.4
-        TabButton.Size = UDim2.new(0, 90, 0, 24)  -- will be overridden by recalcTabWidths
+        TabButton.Size = UDim2.new(0, 90, 0, 24)
         TabButton.Font = Enum.Font.GothamSemibold
         TabButton.Text = name
         TabButton.TextColor3 = currentTheme.TextColor
@@ -331,7 +328,6 @@ function SimpleKavo.CreateLib(title, themeName)
 
         table.insert(tabsOrder, { button = TabButton, content = TabContent, line = ActiveLine })
 
-        -- Recalculate widths now that a new tab was added
         recalcTabWidths()
 
         local function activateTab()
@@ -726,9 +722,31 @@ function SimpleKavo.CreateLib(title, themeName)
                 local elementOrder = #SectionContent:GetChildren()
                 local isOpen = false
 
-                local states = {}
+                local normOptions = {}
                 for _, opt in ipairs(options) do
-                    states[opt] = (defaultStates and defaultStates[opt]) or false
+                    if type(opt) == "string" then
+                        table.insert(normOptions, { name = opt, type = "toggle" })
+                    elseif type(opt) == "table" and type(opt.name) == "string" then
+                        local entry = {
+                            name     = opt.name,
+                            type     = opt.type or "toggle",
+                            min      = opt.min,
+                            max      = opt.max,
+                            default  = opt.default,
+                            decimals = (type(opt.decimals) == "number") and opt.decimals or 2,
+                        }
+                        table.insert(normOptions, entry)
+                    end
+                end
+
+                local allStates = {}
+                for _, opt in ipairs(normOptions) do
+                    local hasToggle = (opt.type == "toggle" or opt.type == "toggleslider" or opt.type == "togglesliderf")
+                    local hasSlider = (opt.type == "slider" or opt.type == "sliderf" or opt.type == "toggleslider" or opt.type == "togglesliderf")
+                    allStates[opt.name] = {
+                        toggleValue = hasToggle and ((defaultStates and defaultStates[opt.name] == true) or false) or nil,
+                        sliderValue = hasSlider and (opt.default or opt.min or 0) or nil,
+                    }
                 end
 
                 local DropFrame = Instance.new("Frame")
@@ -757,9 +775,9 @@ function SimpleKavo.CreateLib(title, themeName)
                 MainPadding.PaddingLeft = UDim.new(0, 10)
                 MainPadding.Parent = MainButton
 
-                local MainCorner = Instance.new("UICorner")
-                MainCorner.CornerRadius = UDim.new(0, 4)
-                MainCorner.Parent = MainButton
+                local MainCorner2 = Instance.new("UICorner")
+                MainCorner2.CornerRadius = UDim.new(0, 4)
+                MainCorner2.Parent = MainButton
 
                 local Arrow = Instance.new("TextLabel")
                 Arrow.Name = "Arrow"
@@ -794,17 +812,39 @@ function SimpleKavo.CreateLib(title, themeName)
                 OptionsList.HorizontalAlignment = Enum.HorizontalAlignment.Left
                 OptionsList.SortOrder = Enum.SortOrder.LayoutOrder
 
-                local ROW_H = 34
-                local rows = {}
+                local TOGGLE_ROW_H   = 34
+                local SLIDER_ONLY_H  = 50
+                local SLIDER_EXTRA_H = 36
 
-                for i, opt in ipairs(options) do
+                local rows = {}
+                local totalOptionsHeight = 0
+
+                for i, opt in ipairs(normOptions) do
+                    local t = opt.type
+                    local hasToggle = (t == "toggle" or t == "toggleslider" or t == "togglesliderf")
+                    local hasSlider = (t == "slider" or t == "sliderf" or t == "toggleslider" or t == "togglesliderf")
+                    local isFloat   = (t == "sliderf" or t == "togglesliderf")
+                    local decimals  = math.clamp(math.floor(opt.decimals), 0, 10)
+                    local fmt       = "%." .. tostring(decimals) .. "f"
+
+                    local rowH
+                    if hasToggle and hasSlider then
+                        rowH = TOGGLE_ROW_H + SLIDER_EXTRA_H
+                    elseif hasSlider then
+                        rowH = SLIDER_ONLY_H
+                    else
+                        rowH = TOGGLE_ROW_H
+                    end
+                    totalOptionsHeight = totalOptionsHeight + rowH
+
                     local Row = Instance.new("Frame")
-                    Row.Name = opt .. "_Row"
+                    Row.Name = opt.name .. "_Row"
                     Row.Parent = OptionsFrame
                     Row.BackgroundTransparency = 1
-                    Row.Size = UDim2.new(1, 0, 0, ROW_H)
+                    Row.Size = UDim2.new(1, 0, 0, rowH)
                     Row.LayoutOrder = i
                     Row.ZIndex = 9
+                    Row.ClipsDescendants = false
 
                     if i > 1 then
                         local Sep = Instance.new("Frame")
@@ -818,70 +858,174 @@ function SimpleKavo.CreateLib(title, themeName)
                         Sep.ZIndex = 9
                     end
 
-                    local RowLabel = Instance.new("TextLabel")
-                    RowLabel.Name = "Label"
-                    RowLabel.Parent = Row
-                    RowLabel.BackgroundTransparency = 1
-                    RowLabel.Position = UDim2.new(0, 12, 0, 0)
-                    RowLabel.Size = UDim2.new(1, -60, 1, 0)
-                    RowLabel.Font = Enum.Font.Gotham
-                    RowLabel.Text = opt
-                    RowLabel.TextColor3 = currentTheme.TextColor
-                    RowLabel.TextSize = 13
-                    RowLabel.TextXAlignment = Enum.TextXAlignment.Left
-                    RowLabel.ZIndex = 10
+                    if hasToggle then
+                        local RowLabel = Instance.new("TextLabel")
+                        RowLabel.Name = "Label"
+                        RowLabel.Parent = Row
+                        RowLabel.BackgroundTransparency = 1
+                        RowLabel.Position = UDim2.new(0, 12, 0, 0)
+                        RowLabel.Size = UDim2.new(1, -60, 0, TOGGLE_ROW_H)
+                        RowLabel.Font = Enum.Font.Gotham
+                        RowLabel.Text = opt.name
+                        RowLabel.TextColor3 = currentTheme.TextColor
+                        RowLabel.TextSize = 13
+                        RowLabel.TextXAlignment = Enum.TextXAlignment.Left
+                        RowLabel.ZIndex = 10
 
-                    local ToggleBtn = Instance.new("TextButton")
-                    ToggleBtn.Name = "Toggle"
-                    ToggleBtn.Parent = Row
-                    ToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
-                    ToggleBtn.Position = UDim2.new(1, -10, 0.5, 0)
-                    ToggleBtn.Size = UDim2.new(0, 32, 0, 18)
-                    ToggleBtn.BackgroundColor3 = currentTheme.ElementColor
-                    ToggleBtn.BackgroundTransparency = 0.1
-                    ToggleBtn.Text = ""
-                    ToggleBtn.AutoButtonColor = false
-                    ToggleBtn.ZIndex = 10
+                        local ToggleBtn = Instance.new("TextButton")
+                        ToggleBtn.Name = "Toggle"
+                        ToggleBtn.Parent = Row
+                        ToggleBtn.AnchorPoint = Vector2.new(1, 0)
+                        ToggleBtn.Position = UDim2.new(1, -10, 0, 8)
+                        ToggleBtn.Size = UDim2.new(0, 32, 0, 18)
+                        ToggleBtn.BackgroundColor3 = currentTheme.ElementColor
+                        ToggleBtn.BackgroundTransparency = 0.1
+                        ToggleBtn.Text = ""
+                        ToggleBtn.AutoButtonColor = false
+                        ToggleBtn.ZIndex = 10
 
-                    local TCorner = Instance.new("UICorner")
-                    TCorner.CornerRadius = UDim.new(1, 0)
-                    TCorner.Parent = ToggleBtn
+                        local TCorner = Instance.new("UICorner")
+                        TCorner.CornerRadius = UDim.new(1, 0)
+                        TCorner.Parent = ToggleBtn
 
-                    local Knob = Instance.new("Frame")
-                    Knob.Name = "Knob"
-                    Knob.Parent = ToggleBtn
-                    Knob.AnchorPoint = Vector2.new(0, 0.5)
-                    Knob.Position = UDim2.new(0, 2, 0.5, 0)
-                    Knob.Size = UDim2.new(0, 14, 0, 14)
-                    Knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-                    Knob.ZIndex = 11
+                        local Knob = Instance.new("Frame")
+                        Knob.Name = "Knob"
+                        Knob.Parent = ToggleBtn
+                        Knob.AnchorPoint = Vector2.new(0, 0.5)
+                        Knob.Position = UDim2.new(0, 2, 0.5, 0)
+                        Knob.Size = UDim2.new(0, 14, 0, 14)
+                        Knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+                        Knob.ZIndex = 11
 
-                    local KCorner = Instance.new("UICorner")
-                    KCorner.CornerRadius = UDim.new(1, 0)
-                    KCorner.Parent = Knob
+                        local KCorner = Instance.new("UICorner")
+                        KCorner.CornerRadius = UDim.new(1, 0)
+                        KCorner.Parent = Knob
 
-                    local function updateVisual(state)
-                        if state then
-                            Tween(ToggleBtn, {BackgroundColor3 = currentTheme.SchemeColor, BackgroundTransparency = 0}, 0.15)
-                            Tween(Knob, {Position = UDim2.new(1, -16, 0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}, 0.15)
-                        else
-                            Tween(ToggleBtn, {BackgroundColor3 = currentTheme.ElementColor, BackgroundTransparency = 0.1}, 0.15)
-                            Tween(Knob, {Position = UDim2.new(0, 2, 0.5, 0), BackgroundColor3 = Color3.fromRGB(200, 200, 200)}, 0.15)
+                        local function updateToggleVisual(state)
+                            if state then
+                                Tween(ToggleBtn, {BackgroundColor3 = currentTheme.SchemeColor, BackgroundTransparency = 0}, 0.15)
+                                Tween(Knob, {Position = UDim2.new(1, -16, 0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}, 0.15)
+                            else
+                                Tween(ToggleBtn, {BackgroundColor3 = currentTheme.ElementColor, BackgroundTransparency = 0.1}, 0.15)
+                                Tween(Knob, {Position = UDim2.new(0, 2, 0.5, 0), BackgroundColor3 = Color3.fromRGB(200, 200, 200)}, 0.15)
+                            end
                         end
+
+                        updateToggleVisual(allStates[opt.name].toggleValue)
+
+                        ToggleBtn.MouseButton1Click:Connect(function()
+                            allStates[opt.name].toggleValue = not allStates[opt.name].toggleValue
+                            updateToggleVisual(allStates[opt.name].toggleValue)
+                            if callback then
+                                callback(opt.name, allStates[opt.name].toggleValue, allStates[opt.name].sliderValue, allStates)
+                            end
+                        end)
+
+                        rows[opt.name] = rows[opt.name] or {}
+                        rows[opt.name].toggleBtn = ToggleBtn
+                        rows[opt.name].knob = Knob
+                        rows[opt.name].updateToggleVisual = updateToggleVisual
                     end
 
-                    updateVisual(states[opt])
+                    if hasSlider then
+                        local sliderMin      = opt.min or 0
+                        local sliderMax      = opt.max or 100
+                        local sliderDefault  = allStates[opt.name].sliderValue
+                        local sliderDragging = false
+                        local sliderYOffset  = hasToggle and TOGGLE_ROW_H or 8
 
-                    ToggleBtn.MouseButton1Click:Connect(function()
-                        states[opt] = not states[opt]
-                        updateVisual(states[opt])
-                        if callback then callback(opt, states[opt], states) end
-                    end)
+                        local SliderText = Instance.new("TextLabel")
+                        SliderText.Name = "SliderText"
+                        SliderText.Parent = Row
+                        SliderText.BackgroundTransparency = 1
+                        SliderText.Font = Enum.Font.Gotham
+                        SliderText.TextColor3 = currentTheme.TextColor
+                        SliderText.TextSize = 11
+                        SliderText.ZIndex = 10
 
-                    rows[opt] = { row = Row, toggleBtn = ToggleBtn, knob = Knob, updateVisual = updateVisual }
+                        if hasToggle then
+                            SliderText.Text = isFloat and string.format(fmt, sliderDefault) or tostring(math.floor(sliderDefault))
+                            SliderText.TextXAlignment = Enum.TextXAlignment.Right
+                            SliderText.Position = UDim2.new(0, 12, 0, sliderYOffset)
+                            SliderText.Size = UDim2.new(1, -24, 0, 14)
+                        else
+                            SliderText.Text = opt.name .. ": " .. (isFloat and string.format(fmt, sliderDefault) or tostring(math.floor(sliderDefault)))
+                            SliderText.TextXAlignment = Enum.TextXAlignment.Left
+                            SliderText.Position = UDim2.new(0, 12, 0, sliderYOffset)
+                            SliderText.Size = UDim2.new(1, -24, 0, 16)
+                        end
+
+                        local barYOffset = sliderYOffset + (hasToggle and 14 or 20)
+
+                        local SliderBar = Instance.new("Frame")
+                        SliderBar.Name = "Bar"
+                        SliderBar.Parent = Row
+                        SliderBar.BackgroundColor3 = currentTheme.ElementColor
+                        SliderBar.BackgroundTransparency = 0.3
+                        SliderBar.Position = UDim2.new(0, 12, 0, barYOffset)
+                        SliderBar.Size = UDim2.new(1, -24, 0, 6)
+                        SliderBar.ZIndex = 10
+
+                        local SliderBarCorner = Instance.new("UICorner")
+                        SliderBarCorner.CornerRadius = UDim.new(1, 0)
+                        SliderBarCorner.Parent = SliderBar
+
+                        local initPercent = math.clamp((sliderDefault - sliderMin) / (sliderMax - sliderMin), 0, 1)
+                        local SliderFill = Instance.new("Frame")
+                        SliderFill.Name = "Fill"
+                        SliderFill.Parent = SliderBar
+                        SliderFill.BackgroundColor3 = currentTheme.SchemeColor
+                        SliderFill.Size = UDim2.new(initPercent, 0, 1, 0)
+                        SliderFill.ZIndex = 11
+
+                        local SliderFillCorner = Instance.new("UICorner")
+                        SliderFillCorner.CornerRadius = UDim.new(1, 0)
+                        SliderFillCorner.Parent = SliderFill
+
+                        local function updateSliderVisual(value)
+                            local pct = math.clamp((value - sliderMin) / (sliderMax - sliderMin), 0, 1)
+                            Tween(SliderFill, {Size = UDim2.new(pct, 0, 1, 0)}, 0.08)
+                            if hasToggle then
+                                SliderText.Text = isFloat and string.format(fmt, value) or tostring(math.floor(value))
+                            else
+                                SliderText.Text = opt.name .. ": " .. (isFloat and string.format(fmt, value) or tostring(math.floor(value)))
+                            end
+                            allStates[opt.name].sliderValue = value
+                            if callback then
+                                callback(opt.name, allStates[opt.name].toggleValue, value, allStates)
+                            end
+                        end
+
+                        SliderBar.InputBegan:Connect(function(input)
+                            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                                sliderDragging = true
+                            end
+                        end)
+                        SliderBar.InputEnded:Connect(function(input)
+                            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                                sliderDragging = false
+                            end
+                        end)
+                        UserInputService.InputChanged:Connect(function(input)
+                            if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                                local pos = input.Position.X - SliderBar.AbsolutePosition.X
+                                local pct = math.clamp(pos / SliderBar.AbsoluteSize.X, 0, 1)
+                                local value = sliderMin + (sliderMax - sliderMin) * pct
+                                updateSliderVisual(value)
+                            end
+                        end)
+
+                        rows[opt.name] = rows[opt.name] or {}
+                        rows[opt.name].sliderFill = SliderFill
+                        rows[opt.name].sliderText = SliderText
+                        rows[opt.name].updateSliderVisual = updateSliderVisual
+                        rows[opt.name].sliderMin = sliderMin
+                        rows[opt.name].sliderMax = sliderMax
+                    end
+
+                    rows[opt.name] = rows[opt.name] or {}
+                    rows[opt.name].row = Row
                 end
-
-                local totalOptionsHeight = #options * ROW_H
 
                 local function toggleOpen()
                     isOpen = not isOpen
@@ -922,17 +1066,50 @@ function SimpleKavo.CreateLib(title, themeName)
                 local methods = {}
                 methods.Frame = DropFrame
 
-                function methods:Set(optName, value)
-                    if states[optName] == nil then return end
-                    states[optName] = value
-                    if rows[optName] then rows[optName].updateVisual(value) end
-                    if callback then callback(optName, value, states) end
+                function methods:SetToggle(optName, value)
+                    if allStates[optName] == nil or allStates[optName].toggleValue == nil then return end
+                    allStates[optName].toggleValue = value
+                    if rows[optName] and rows[optName].updateToggleVisual then
+                        rows[optName].updateToggleVisual(value)
+                    end
+                    if callback then
+                        callback(optName, value, allStates[optName].sliderValue, allStates)
+                    end
                 end
 
-                function methods:Get(optName)
-                    if optName then return states[optName] end
+                function methods:SetSlider(optName, value)
+                    if allStates[optName] == nil or allStates[optName].sliderValue == nil then return end
+                    local r = rows[optName]
+                    if not r then return end
+                    value = math.clamp(value, r.sliderMin, r.sliderMax)
+                    if r.updateSliderVisual then r.updateSliderVisual(value) end
+                end
+
+                function methods:GetToggle(optName)
+                    if allStates[optName] then return allStates[optName].toggleValue end
+                    return nil
+                end
+
+                function methods:GetSlider(optName)
+                    if allStates[optName] then return allStates[optName].sliderValue end
+                    return nil
+                end
+
+                function methods:GetAll()
                     local copy = {}
-                    for k, v in pairs(states) do copy[k] = v end
+                    for k, v in pairs(allStates) do
+                        copy[k] = { toggleValue = v.toggleValue, sliderValue = v.sliderValue }
+                    end
+                    return copy
+                end
+
+                function methods:Set(optName, value)
+                    self:SetToggle(optName, value)
+                end
+                function methods:Get(optName)
+                    if optName then return allStates[optName] and allStates[optName].toggleValue end
+                    local copy = {}
+                    for k, v in pairs(allStates) do copy[k] = v.toggleValue end
                     return copy
                 end
 
@@ -1023,7 +1200,7 @@ function SimpleKavo.CreateLib(title, themeName)
                 SliderText.BackgroundTransparency = 1
                 SliderText.Size = UDim2.new(1, 0, 0.4, 0)
                 SliderText.Font = Enum.Font.Gotham
-                SliderText.Text = name .. ": " .. math.floor(default)
+                SliderText.Text = name .. ": " .. tostring(math.floor(default))
                 SliderText.TextColor3 = currentTheme.TextColor
                 SliderText.TextSize = 14
                 SliderText.TextXAlignment = Enum.TextXAlignment.Left
@@ -1055,7 +1232,7 @@ function SimpleKavo.CreateLib(title, themeName)
                 local function UpdateSlider(value)
                     local percent = math.clamp((value - min) / (max - min), 0, 1)
                     Tween(SliderFill, {Size = UDim2.new(percent, 0, 1, 0)}, 0.1)
-                    SliderText.Text = name .. ": " .. math.floor(value)
+                    SliderText.Text = name .. ": " .. tostring(math.floor(value))
                     if callback then callback(value) end
                 end
 
@@ -1085,7 +1262,7 @@ function SimpleKavo.CreateLib(title, themeName)
                     value = math.clamp(value, min, max)
                     local percent = (value - min) / (max - min)
                     SliderFill.Size = UDim2.new(percent, 0, 1, 0)
-                    SliderText.Text = name .. ": " .. math.floor(value)
+                    SliderText.Text = name .. ": " .. tostring(math.floor(value))
                     if callback then callback(value) end
                 end
                 function sliderObj:Get()

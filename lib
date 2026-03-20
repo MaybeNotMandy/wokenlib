@@ -824,7 +824,7 @@ function SimpleKavo.CreateLib(title, themeName)
                     local hasToggle = (t == "toggle" or t == "toggleslider" or t == "togglesliderf")
                     local hasSlider = (t == "slider" or t == "sliderf" or t == "toggleslider" or t == "togglesliderf")
                     local isFloat   = (t == "sliderf" or t == "togglesliderf")
-                    local decimals  = math.clamp(math.floor(opt.decimals), 0, 10)
+                    local decimals  = math.clamp(math.floor(opt.decimals or 0), 0, 10)
                     local fmt       = "%." .. tostring(decimals) .. "f"
 
                     local rowH

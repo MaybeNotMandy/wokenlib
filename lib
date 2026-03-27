@@ -2,6 +2,28 @@ local SimpleKavo = {}
 local TweenService = game:GetService("TweenService") or error("TweenService not available")
 local UserInputService = game:GetService("UserInputService") or error("UserInputService not available")
 local RunService = game:GetService("RunService") or error("RunService not available")
+
+-- ─── Keybind persistence ───────────────────────────────────────────────────
+local KEYBIND_FILE = "simplekavo_keybind.txt"
+local DEFAULT_KEYBIND = Enum.KeyCode.F1
+
+local function saveKeybind(keyCode)
+    local ok, err = pcall(writefile, KEYBIND_FILE, keyCode.Name)
+    if not ok then
+        warn("[SimpleKavo] Não foi possível salvar a keybind: " .. tostring(err))
+    end
+end
+
+local function loadKeybind()
+    local ok, data = pcall(readfile, KEYBIND_FILE)
+    if ok and type(data) == "string" and data ~= "" then
+        local key = Enum.KeyCode[data:match("^%s*(.-)%s*$")]
+        if key then return key end
+    end
+    return DEFAULT_KEYBIND
+end
+-- ───────────────────────────────────────────────────────────────────────────
+
 local Themes = {
     DarkTheme = {
         SchemeColor = Color3.fromRGB(64, 64, 64),
@@ -32,12 +54,14 @@ local Themes = {
         ElementColor = Color3.fromRGB(32, 32, 38)
     }
 }
+
 local function Tween(object, properties, duration)
     local tweenInfo = TweenInfo.new(duration or 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local tween = TweenService:Create(object, tweenInfo, properties)
     tween:Play()
     return tween
 end
+
 function SimpleKavo:DraggingEnabled(frame, parent)
     parent = parent or frame
     local dragging = false
@@ -70,8 +94,13 @@ function SimpleKavo:DraggingEnabled(frame, parent)
         end
     end)
 end
+
 function SimpleKavo.CreateLib(title, themeName)
     local currentTheme = Themes[themeName] or Themes.DefaultTheme
+
+    -- Carrega a keybind salva (ou usa o padrão)
+    local toggleKey = loadKeybind()
+    local listeningForKey = false
 
     local guiName = "SimpleKavo_Test"
     local ScreenGui = Instance.new("ScreenGui")
@@ -124,7 +153,7 @@ function SimpleKavo.CreateLib(title, themeName)
     Title.Parent = Header
     Title.BackgroundTransparency = 1
     Title.Position = UDim2.new(0.03, 0, 0, 0)
-    Title.Size = UDim2.new(0.6, 0, 1, 0)
+    Title.Size = UDim2.new(0.5, 0, 1, 0)
     Title.Font = Enum.Font.GothamSemibold
     Title.Text = title
     Title.TextColor3 = currentTheme.TextColor
@@ -132,19 +161,57 @@ function SimpleKavo.CreateLib(title, themeName)
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.ZIndex = 3
 
-    local F1Hint = Instance.new("TextLabel")
-    F1Hint.Parent = Header
-    F1Hint.BackgroundTransparency = 1
-    F1Hint.AnchorPoint = Vector2.new(1, 0.5)
-    F1Hint.Position = UDim2.new(1, -30, 0.5, 0)
-    F1Hint.Size = UDim2.new(0, 50, 0, 16)
-    F1Hint.Font = Enum.Font.Gotham
-    F1Hint.Text = "[F1]"
-    F1Hint.TextColor3 = currentTheme.TextColor
-    F1Hint.TextTransparency = 0.5
-    F1Hint.TextSize = 11
-    F1Hint.TextXAlignment = Enum.TextXAlignment.Right
-    F1Hint.ZIndex = 3
+    -- ─── Botão de keybind (substitui o F1Hint) ────────────────────────────
+    local KeybindBtn = Instance.new("TextButton")
+    KeybindBtn.Name = "KeybindBtn"
+    KeybindBtn.Parent = Header
+    KeybindBtn.BackgroundColor3 = currentTheme.ElementColor
+    KeybindBtn.BackgroundTransparency = 0.5
+    KeybindBtn.AnchorPoint = Vector2.new(1, 0.5)
+    KeybindBtn.Position = UDim2.new(1, -30, 0.5, 0)
+    KeybindBtn.Size = UDim2.new(0, 64, 0, 18)
+    KeybindBtn.Font = Enum.Font.Gotham
+    KeybindBtn.Text = "[" .. toggleKey.Name .. "]"
+    KeybindBtn.TextColor3 = currentTheme.TextColor
+    KeybindBtn.TextTransparency = 0.3
+    KeybindBtn.TextSize = 11
+    KeybindBtn.AutoButtonColor = false
+    KeybindBtn.ZIndex = 3
+
+    local KeybindBtnCorner = Instance.new("UICorner")
+    KeybindBtnCorner.CornerRadius = UDim.new(0, 4)
+    KeybindBtnCorner.Parent = KeybindBtn
+
+    local KeybindBtnStroke = Instance.new("UIStroke")
+    KeybindBtnStroke.Color = Color3.fromRGB(255, 255, 255)
+    KeybindBtnStroke.Transparency = 0.85
+    KeybindBtnStroke.Thickness = 1
+    KeybindBtnStroke.Parent = KeybindBtn
+
+    -- Hover
+    KeybindBtn.MouseEnter:Connect(function()
+        if not listeningForKey then
+            Tween(KeybindBtn, {BackgroundTransparency = 0.25}, 0.1)
+        end
+    end)
+    KeybindBtn.MouseLeave:Connect(function()
+        if not listeningForKey then
+            Tween(KeybindBtn, {BackgroundTransparency = 0.5}, 0.1)
+        end
+    end)
+
+    -- Clique → entra em modo de escuta
+    KeybindBtn.MouseButton1Click:Connect(function()
+        if listeningForKey then return end
+        listeningForKey = true
+        KeybindBtn.Text = "..."
+        Tween(KeybindBtn, {
+            BackgroundColor3 = currentTheme.SchemeColor,
+            BackgroundTransparency = 0.1,
+            TextTransparency = 0
+        }, 0.15)
+    end)
+    -- ──────────────────────────────────────────────────────────────────────
 
     local Close = Instance.new("ImageButton")
     Close.Parent = Header
@@ -204,9 +271,43 @@ function SimpleKavo.CreateLib(title, themeName)
     Content.ZIndex = 2
 
     local Minimized = false
+
+    -- ─── Listener de input global (toggle + captura de nova keybind) ───────
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        -- Captura nova keybind
+        if listeningForKey then
+            -- Só aceita teclado
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+            -- Ignora modificadores sozinhos (Shift, Ctrl, Alt)
+            local ignored = {
+                Enum.KeyCode.LeftShift, Enum.KeyCode.RightShift,
+                Enum.KeyCode.LeftControl, Enum.KeyCode.RightControl,
+                Enum.KeyCode.LeftAlt, Enum.KeyCode.RightAlt,
+                Enum.KeyCode.Unknown,
+            }
+            local keyCode = input.KeyCode
+            local isIgnored = false
+            for _, k in ipairs(ignored) do
+                if keyCode == k then isIgnored = true break end
+            end
+            if isIgnored then return end
+
+            toggleKey = keyCode
+            listeningForKey = false
+            KeybindBtn.Text = "[" .. keyCode.Name .. "]"
+            Tween(KeybindBtn, {
+                BackgroundColor3 = currentTheme.ElementColor,
+                BackgroundTransparency = 0.5,
+                TextTransparency = 0.3
+            }, 0.15)
+            saveKeybind(keyCode)
+            return
+        end
+
+        -- Toggle normal da UI
         if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.F1 then
+        if input.KeyCode == toggleKey then
             Minimized = not Minimized
             if Minimized then
                 Tween(Main, {Size = UDim2.new(0, 0, 0, 0)})
@@ -215,6 +316,7 @@ function SimpleKavo.CreateLib(title, themeName)
             end
         end
     end)
+    -- ──────────────────────────────────────────────────────────────────────
 
     SimpleKavo:DraggingEnabled(Header, Main)
 
@@ -241,6 +343,8 @@ function SimpleKavo.CreateLib(title, themeName)
         Header.BackgroundColor3 = currentTheme.Header
         TabBar.BackgroundColor3 = currentTheme.Header
         Title.TextColor3 = currentTheme.TextColor
+        KeybindBtn.TextColor3 = currentTheme.TextColor
+        KeybindBtn.BackgroundColor3 = currentTheme.ElementColor
         for _, tab in pairs(TabsHolder:GetChildren()) do
             if tab:IsA("TextButton") then
                 tab.TextColor3 = currentTheme.TextColor
@@ -1511,4 +1615,5 @@ function SimpleKavo.CreateLib(title, themeName)
         end
     }
 end
+
 return SimpleKavo

@@ -62,6 +62,21 @@ local function Tween(object, properties, duration)
     return tween
 end
 
+-- ─── Helper: converte string ou EnumItem → KeyCode ────────────────────────
+local function StringToKeyCode(str)
+    if typeof(str) == "EnumItem" then return str end
+    if type(str) ~= "string" then return Enum.KeyCode.Unknown end
+    local alias = {
+        ["ALT"] = "LeftAlt", ["CTRL"] = "LeftControl",
+        ["CONTROL"] = "LeftControl", ["SHIFT"] = "LeftShift",
+        ["MOUSE1"] = "Mouse1", ["MOUSE2"] = "Mouse2",
+    }
+    local upper = string.upper(str)
+    if alias[upper] then str = alias[upper] end
+    return Enum.KeyCode[str] or Enum.KeyCode.Unknown
+end
+-- ─────────────────────────────────────────────────────────────────────────
+
 function SimpleKavo:DraggingEnabled(frame, parent)
     parent = parent or frame
     local dragging = false
@@ -98,7 +113,6 @@ end
 function SimpleKavo.CreateLib(title, themeName)
     local currentTheme = Themes[themeName] or Themes.DefaultTheme
 
-    -- Carrega a keybind salva (ou usa o padrão)
     local toggleKey = loadKeybind()
     local listeningForKey = false
 
@@ -161,7 +175,6 @@ function SimpleKavo.CreateLib(title, themeName)
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.ZIndex = 3
 
-    -- ─── Botão de keybind (substitui o F1Hint) ────────────────────────────
     local KeybindBtn = Instance.new("TextButton")
     KeybindBtn.Name = "KeybindBtn"
     KeybindBtn.Parent = Header
@@ -188,7 +201,6 @@ function SimpleKavo.CreateLib(title, themeName)
     KeybindBtnStroke.Thickness = 1
     KeybindBtnStroke.Parent = KeybindBtn
 
-    -- Hover
     KeybindBtn.MouseEnter:Connect(function()
         if not listeningForKey then
             Tween(KeybindBtn, {BackgroundTransparency = 0.25}, 0.1)
@@ -199,8 +211,6 @@ function SimpleKavo.CreateLib(title, themeName)
             Tween(KeybindBtn, {BackgroundTransparency = 0.5}, 0.1)
         end
     end)
-
-    -- Clique → entra em modo de escuta
     KeybindBtn.MouseButton1Click:Connect(function()
         if listeningForKey then return end
         listeningForKey = true
@@ -211,7 +221,6 @@ function SimpleKavo.CreateLib(title, themeName)
             TextTransparency = 0
         }, 0.15)
     end)
-    -- ──────────────────────────────────────────────────────────────────────
 
     local Close = Instance.new("ImageButton")
     Close.Parent = Header
@@ -272,14 +281,9 @@ function SimpleKavo.CreateLib(title, themeName)
 
     local Minimized = false
 
-    -- ─── Listener de input global (toggle + captura de nova keybind) ───────
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        -- Captura nova keybind
         if listeningForKey then
-            -- Só aceita teclado
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-
-            -- Ignora modificadores sozinhos (Shift, Ctrl, Alt)
             local ignored = {
                 Enum.KeyCode.LeftShift, Enum.KeyCode.RightShift,
                 Enum.KeyCode.LeftControl, Enum.KeyCode.RightControl,
@@ -292,7 +296,6 @@ function SimpleKavo.CreateLib(title, themeName)
                 if keyCode == k then isIgnored = true break end
             end
             if isIgnored then return end
-
             toggleKey = keyCode
             listeningForKey = false
             KeybindBtn.Text = "[" .. keyCode.Name .. "]"
@@ -304,8 +307,6 @@ function SimpleKavo.CreateLib(title, themeName)
             saveKeybind(keyCode)
             return
         end
-
-        -- Toggle normal da UI
         if gameProcessed then return end
         if input.KeyCode == toggleKey then
             Minimized = not Minimized
@@ -316,7 +317,6 @@ function SimpleKavo.CreateLib(title, themeName)
             end
         end
     end)
-    -- ──────────────────────────────────────────────────────────────────────
 
     SimpleKavo:DraggingEnabled(Header, Main)
 
@@ -822,10 +822,14 @@ function SimpleKavo.CreateLib(title, themeName)
                 return dropdownMethods
             end
 
+            -- ════════════════════════════════════════════════════════════════
+            --  NewToggleDropdown  (com suporte a type = "keybind")
+            -- ════════════════════════════════════════════════════════════════
             function SectionFunctions:NewToggleDropdown(name, options, defaultStates, callback)
                 local elementOrder = #SectionContent:GetChildren()
                 local isOpen = false
 
+                -- Normaliza opções
                 local normOptions = {}
                 for _, opt in ipairs(options) do
                     if type(opt) == "string" then
@@ -843,16 +847,32 @@ function SimpleKavo.CreateLib(title, themeName)
                     end
                 end
 
+                -- Estado inicial
                 local allStates = {}
                 for _, opt in ipairs(normOptions) do
-                    local hasToggle = (opt.type == "toggle" or opt.type == "toggleslider" or opt.type == "togglesliderf")
-                    local hasSlider = (opt.type == "slider" or opt.type == "sliderf" or opt.type == "toggleslider" or opt.type == "togglesliderf")
+                    local t = opt.type
+                    local hasToggle = (t == "toggle" or t == "toggleslider" or t == "togglesliderf")
+                    local hasSlider = (t == "slider" or t == "sliderf" or t == "toggleslider" or t == "togglesliderf")
+                    local isKeybind = (t == "keybind")
+
+                    local initKey = nil
+                    if isKeybind then
+                        local defRaw = opt.default
+                        if defRaw ~= nil then
+                            initKey = StringToKeyCode(defRaw)
+                        else
+                            initKey = Enum.KeyCode.Unknown
+                        end
+                    end
+
                     allStates[opt.name] = {
-                        toggleValue = hasToggle and ((defaultStates and defaultStates[opt.name] == true) or false) or nil,
-                        sliderValue = hasSlider and (opt.default or opt.min or 0) or nil,
+                        toggleValue  = hasToggle and ((defaultStates and defaultStates[opt.name] == true) or false) or nil,
+                        sliderValue  = hasSlider and (opt.default or opt.min or 0) or nil,
+                        keybindValue = isKeybind and initKey or nil,
                     }
                 end
 
+                -- Frame principal do dropdown
                 local DropFrame = Instance.new("Frame")
                 DropFrame.Name = name .. "_ToggleDropdown"
                 DropFrame.BackgroundTransparency = 1
@@ -916,23 +936,31 @@ function SimpleKavo.CreateLib(title, themeName)
                 OptionsList.HorizontalAlignment = Enum.HorizontalAlignment.Left
                 OptionsList.SortOrder = Enum.SortOrder.LayoutOrder
 
+                -- Alturas das linhas
                 local TOGGLE_ROW_H   = 34
                 local SLIDER_ONLY_H  = 50
                 local SLIDER_EXTRA_H = 36
+                local KEYBIND_ROW_H  = 38   -- altura da linha de keybind
 
                 local rows = {}
                 local totalOptionsHeight = 0
+
+                -- Lista de conexões de input para keybinds (para desconectar no cleanup)
+                local keybindInputConns = {}
 
                 for i, opt in ipairs(normOptions) do
                     local t = opt.type
                     local hasToggle = (t == "toggle" or t == "toggleslider" or t == "togglesliderf")
                     local hasSlider = (t == "slider" or t == "sliderf" or t == "toggleslider" or t == "togglesliderf")
+                    local isKeybind = (t == "keybind")
                     local isFloat   = (t == "sliderf" or t == "togglesliderf")
                     local decimals  = math.clamp(math.floor(opt.decimals or 0), 0, 10)
                     local fmt       = "%." .. tostring(decimals) .. "f"
 
                     local rowH
-                    if hasToggle and hasSlider then
+                    if isKeybind then
+                        rowH = KEYBIND_ROW_H
+                    elseif hasToggle and hasSlider then
                         rowH = TOGGLE_ROW_H + SLIDER_EXTRA_H
                     elseif hasSlider then
                         rowH = SLIDER_ONLY_H
@@ -950,6 +978,7 @@ function SimpleKavo.CreateLib(title, themeName)
                     Row.ZIndex = 9
                     Row.ClipsDescendants = false
 
+                    -- Separador
                     if i > 1 then
                         local Sep = Instance.new("Frame")
                         Sep.Name = "Sep"
@@ -962,6 +991,7 @@ function SimpleKavo.CreateLib(title, themeName)
                         Sep.ZIndex = 9
                     end
 
+                    -- ── Toggle ──────────────────────────────────────────────
                     if hasToggle then
                         local RowLabel = Instance.new("TextLabel")
                         RowLabel.Name = "Label"
@@ -1031,6 +1061,7 @@ function SimpleKavo.CreateLib(title, themeName)
                         rows[opt.name].updateToggleVisual = updateToggleVisual
                     end
 
+                    -- ── Slider ──────────────────────────────────────────────
                     if hasSlider then
                         local sliderMin      = opt.min or 0
                         local sliderMax      = opt.max or 100
@@ -1127,10 +1158,118 @@ function SimpleKavo.CreateLib(title, themeName)
                         rows[opt.name].sliderMax = sliderMax
                     end
 
+                    -- ── Keybind ─────────────────────────────────────────────
+                    if isKeybind then
+                        local currentKey    = allStates[opt.name].keybindValue
+                        local listeningKB   = false
+
+                        -- Label
+                        local KBLabel = Instance.new("TextLabel")
+                        KBLabel.Name = "Label"
+                        KBLabel.Parent = Row
+                        KBLabel.BackgroundTransparency = 1
+                        KBLabel.Position = UDim2.new(0, 12, 0, 0)
+                        KBLabel.Size = UDim2.new(0.55, 0, 1, 0)
+                        KBLabel.Font = Enum.Font.Gotham
+                        KBLabel.Text = opt.name
+                        KBLabel.TextColor3 = currentTheme.TextColor
+                        KBLabel.TextSize = 13
+                        KBLabel.TextXAlignment = Enum.TextXAlignment.Left
+                        KBLabel.ZIndex = 10
+
+                        -- Botão de captura
+                        local KBButton = Instance.new("TextButton")
+                        KBButton.Name = "KeybindButton"
+                        KBButton.Parent = Row
+                        KBButton.AnchorPoint = Vector2.new(1, 0.5)
+                        KBButton.Position = UDim2.new(1, -10, 0.5, 0)
+                        KBButton.Size = UDim2.new(0, 80, 0, 22)
+                        KBButton.BackgroundColor3 = currentTheme.ElementColor
+                        KBButton.BackgroundTransparency = 0.3
+                        KBButton.Font = Enum.Font.Gotham
+                        KBButton.Text = (currentKey and currentKey ~= Enum.KeyCode.Unknown)
+                            and currentKey.Name or "[None]"
+                        KBButton.TextColor3 = currentTheme.TextColor
+                        KBButton.TextSize = 12
+                        KBButton.AutoButtonColor = false
+                        KBButton.ZIndex = 10
+
+                        local KBCorner = Instance.new("UICorner")
+                        KBCorner.CornerRadius = UDim.new(0, 4)
+                        KBCorner.Parent = KBButton
+
+                        -- Hover
+                        KBButton.MouseEnter:Connect(function()
+                            if not listeningKB then
+                                Tween(KBButton, {BackgroundTransparency = 0.1}, 0.1)
+                            end
+                        end)
+                        KBButton.MouseLeave:Connect(function()
+                            if not listeningKB then
+                                Tween(KBButton, {BackgroundTransparency = 0.3}, 0.1)
+                            end
+                        end)
+
+                        -- Clique → entra em modo escuta
+                        KBButton.MouseButton1Click:Connect(function()
+                            if listeningKB then return end
+                            listeningKB = true
+                            KBButton.Text = "..."
+                            Tween(KBButton, {
+                                BackgroundColor3 = currentTheme.SchemeColor,
+                                BackgroundTransparency = 0.1
+                            }, 0.15)
+                        end)
+
+                        -- Captura de tecla
+                        local kbConn
+                        kbConn = UserInputService.InputBegan:Connect(function(input, gp)
+                            if not listeningKB then return end
+                            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+                            local ignoredKB = {
+                                Enum.KeyCode.LeftShift, Enum.KeyCode.RightShift,
+                                Enum.KeyCode.LeftControl, Enum.KeyCode.RightControl,
+                                Enum.KeyCode.LeftAlt, Enum.KeyCode.RightAlt,
+                                Enum.KeyCode.Unknown,
+                            }
+                            local skip = false
+                            for _, k in ipairs(ignoredKB) do
+                                if input.KeyCode == k then skip = true break end
+                            end
+                            if skip then return end
+
+                            currentKey = input.KeyCode
+                            allStates[opt.name].keybindValue = currentKey
+                            listeningKB = false
+                            KBButton.Text = currentKey.Name
+                            Tween(KBButton, {
+                                BackgroundColor3 = currentTheme.ElementColor,
+                                BackgroundTransparency = 0.3
+                            }, 0.15)
+                            if callback then
+                                callback(opt.name, currentKey, nil, allStates)
+                            end
+                        end)
+                        table.insert(keybindInputConns, kbConn)
+
+                        rows[opt.name] = rows[opt.name] or {}
+                        rows[opt.name].kbButton  = KBButton
+                        rows[opt.name].getCurrentKey = function() return currentKey end
+                        rows[opt.name].setKey = function(newKey)
+                            currentKey = newKey
+                            allStates[opt.name].keybindValue = newKey
+                            KBButton.Text = (newKey and newKey ~= Enum.KeyCode.Unknown)
+                                and newKey.Name or "[None]"
+                        end
+                    end
+                    -- ────────────────────────────────────────────────────────
+
                     rows[opt.name] = rows[opt.name] or {}
                     rows[opt.name].row = Row
                 end
 
+                -- Abre/fecha o dropdown
                 local function toggleOpen()
                     isOpen = not isOpen
                     Tween(Arrow, {Rotation = isOpen and 180 or 0}, 0.2)
@@ -1161,12 +1300,18 @@ function SimpleKavo.CreateLib(title, themeName)
                         end
                     end
                 end)
+
+                -- Limpa conexões de keybind quando o frame for destruído
                 DropFrame.Destroying:Connect(function()
                     outsideConn:Disconnect()
+                    for _, c in ipairs(keybindInputConns) do
+                        c:Disconnect()
+                    end
                 end)
 
                 DropFrame.Parent = SectionContent
 
+                -- ── Métodos públicos ─────────────────────────────────────────
                 local methods = {}
                 methods.Frame = DropFrame
 
@@ -1189,6 +1334,17 @@ function SimpleKavo.CreateLib(title, themeName)
                     if r.updateSliderVisual then r.updateSliderVisual(value) end
                 end
 
+                -- Define a keybind de uma opção programaticamente
+                function methods:SetKeybind(optName, keyValue)
+                    if allStates[optName] == nil or allStates[optName].keybindValue == nil then return end
+                    local newKey = StringToKeyCode(keyValue)
+                    local r = rows[optName]
+                    if r and r.setKey then r.setKey(newKey) end
+                    if callback then
+                        callback(optName, newKey, nil, allStates)
+                    end
+                end
+
                 function methods:GetToggle(optName)
                     if allStates[optName] then return allStates[optName].toggleValue end
                     return nil
@@ -1199,14 +1355,24 @@ function SimpleKavo.CreateLib(title, themeName)
                     return nil
                 end
 
+                function methods:GetKeybind(optName)
+                    if allStates[optName] then return allStates[optName].keybindValue end
+                    return nil
+                end
+
                 function methods:GetAll()
                     local copy = {}
                     for k, v in pairs(allStates) do
-                        copy[k] = { toggleValue = v.toggleValue, sliderValue = v.sliderValue }
+                        copy[k] = {
+                            toggleValue  = v.toggleValue,
+                            sliderValue  = v.sliderValue,
+                            keybindValue = v.keybindValue,
+                        }
                     end
                     return copy
                 end
 
+                -- Aliases de compatibilidade
                 function methods:Set(optName, value)
                     self:SetToggle(optName, value)
                 end
@@ -1219,6 +1385,7 @@ function SimpleKavo.CreateLib(title, themeName)
 
                 return methods
             end
+            -- ════════════════════════════════════════════════════════════════
 
             function SectionFunctions:NewTextBox(name, placeholder, callback)
                 local elementOrder = #SectionContent:GetChildren()
@@ -1471,20 +1638,6 @@ function SimpleKavo.CreateLib(title, themeName)
             end
 
             function SectionFunctions:NewKeybind(name, defaultKey, callback)
-                local function StringToKeyCode(str)
-                    if typeof(str) ~= "string" then
-                        return typeof(str) == "EnumItem" and str or Enum.KeyCode.Unknown
-                    end
-                    local alias = {
-                        ["ALT"] = "LeftAlt", ["CTRL"] = "LeftControl",
-                        ["CONTROL"] = "LeftControl", ["SHIFT"] = "LeftShift",
-                        ["MOUSE1"] = "Mouse1", ["MOUSE2"] = "Mouse2",
-                    }
-                    local upper = string.upper(str)
-                    if alias[upper] then str = alias[upper] end
-                    return Enum.KeyCode[str] or Enum.KeyCode.Unknown
-                end
-
                 local elementOrder = #SectionContent:GetChildren()
                 local currentKey = StringToKeyCode(defaultKey)
                 local listening = false
